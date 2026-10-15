@@ -152,12 +152,18 @@
   <div id="tab-late" class="tab-content">
     <div class="panel">
       <h3 id="lateFormTitle">➕ Add Penalty</h3>
-      <p style="font-size:12px;color:#666;margin-bottom:12px;">Late penalty = ₹<span id="penaltyAmtDisplay">120</span> fixed. For "Other", enter custom amount + description.</p>
+      <p style="font-size:12px;color:#666;margin-bottom:12px;">Late = ₹<span id="penaltyAmtDisplay">120</span> fixed. Other = Cash (amount) OR Party (item like pizza/samosa, amount optional).</p>
       <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
         <label style="display:flex;flex-direction:column;font-size:12px;color:#555;gap:4px;min-width:130px;">Type *
           <select id="l_type" onchange="toggleLateFields()" style="padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
             <option value="late">Late</option>
             <option value="other">Other</option>
+          </select>
+        </label>
+        <label id="field_otherMode" style="display:none;flex-direction:column;font-size:12px;color:#555;gap:4px;min-width:130px;">Other Mode *
+          <select id="l_otherMode" onchange="toggleLateFields()" style="padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+            <option value="cash">Cash</option>
+            <option value="party">Party (item)</option>
           </select>
         </label>
         <label style="display:flex;flex-direction:column;font-size:12px;color:#555;gap:4px;flex:1;min-width:160px;">Employee *
@@ -169,10 +175,13 @@
         <label id="field_arrive" style="display:flex;flex-direction:column;font-size:12px;color:#555;gap:4px;min-width:120px;">Arrive Time *
           <input type="time" id="l_arriveTime" style="padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
         </label>
-        <label id="field_amount" style="display:none;flex-direction:column;font-size:12px;color:#555;gap:4px;min-width:120px;">Amount (₹) *
-          <input type="number" id="l_amount" min="1" step="1" style="padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+        <label id="field_amount" style="display:none;flex-direction:column;font-size:12px;color:#555;gap:4px;min-width:120px;"><span id="amtLabel">Amount (₹) *</span>
+          <input type="number" id="l_amount" min="0" step="1" placeholder="0" style="padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
         </label>
-        <label id="field_desc" style="display:none;flex-direction:column;font-size:12px;color:#555;gap:4px;flex:1;min-width:200px;">Description *
+        <label id="field_item" style="display:none;flex-direction:column;font-size:12px;color:#555;gap:4px;min-width:160px;">Item *
+          <input type="text" id="l_item" placeholder="e.g. Pizza, Samosa, Kachori" style="padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+        </label>
+        <label id="field_desc" style="display:none;flex-direction:column;font-size:12px;color:#555;gap:4px;flex:1;min-width:200px;">Reason (optional)
           <input type="text" id="l_description" placeholder="Why this penalty?" style="padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
         </label>
         <button class="btn btn-save" onclick="saveLate()">💾 Save</button>
@@ -450,9 +459,15 @@ function renderEmployees() {
 function toggleLateFields() {
   const type = document.getElementById('l_type').value;
   const isLate = type === 'late';
+  const otherMode = document.getElementById('l_otherMode').value;
+  const isParty = !isLate && otherMode === 'party';
+  const isCash = !isLate && otherMode === 'cash';
   document.getElementById('field_arrive').style.display = isLate ? 'flex' : 'none';
+  document.getElementById('field_otherMode').style.display = isLate ? 'none' : 'flex';
   document.getElementById('field_amount').style.display = isLate ? 'none' : 'flex';
+  document.getElementById('field_item').style.display = isParty ? 'flex' : 'none';
   document.getElementById('field_desc').style.display = isLate ? 'none' : 'flex';
+  document.getElementById('amtLabel').textContent = isCash ? 'Amount (₹) *' : 'Amount (₹) (optional)';
 }
 
 async function saveLate() {
@@ -468,12 +483,21 @@ async function saveLate() {
     rec.arriveTime = arriveTime;
     rec.amount = db.penaltyPerDay;
   } else {
-    const amount = parseInt(document.getElementById('l_amount').value, 10);
+    const otherMode = document.getElementById('l_otherMode').value;
+    const amountRaw = document.getElementById('l_amount').value;
+    const amount = amountRaw ? parseInt(amountRaw, 10) : 0;
+    const item = document.getElementById('l_item').value.trim();
     const description = document.getElementById('l_description').value.trim();
-    if (!amount || amount <= 0) { showMsg('Valid amount required.', 'error'); return; }
-    if (!description) { showMsg('Description required for Other.', 'error'); return; }
-    rec.amount = amount;
-    rec.description = description;
+    rec.otherMode = otherMode;
+    if (otherMode === 'cash') {
+      if (!amount || amount <= 0) { showMsg('Valid amount required for Cash.', 'error'); return; }
+      rec.amount = amount;
+    } else {
+      if (!item) { showMsg('Item required for Party.', 'error'); return; }
+      rec.item = item;
+      rec.amount = amount || 0;
+    }
+    if (description) rec.description = description;
   }
   if (editId) {
     const idx = db.lateRecords.findIndex(r => r.id === editId);
@@ -491,10 +515,12 @@ function editLate(id) {
   if (!r) return;
   document.getElementById('l_editId').value = r.id;
   document.getElementById('l_type').value = r.type || 'late';
+  document.getElementById('l_otherMode').value = r.otherMode || 'cash';
   document.getElementById('l_employee').value = r.employee;
   document.getElementById('l_date').value = r.date;
   document.getElementById('l_arriveTime').value = r.arriveTime || '';
   document.getElementById('l_amount').value = r.amount || '';
+  document.getElementById('l_item').value = r.item || '';
   document.getElementById('l_description').value = r.description || '';
   toggleLateFields();
   document.getElementById('lateFormTitle').textContent = '✏️ Edit Penalty';
@@ -511,10 +537,12 @@ async function deleteLate(id) {
 function resetLateForm() {
   document.getElementById('l_editId').value = '';
   document.getElementById('l_type').value = 'late';
+  document.getElementById('l_otherMode').value = 'cash';
   document.getElementById('l_employee').value = '';
   document.getElementById('l_date').value = '';
   document.getElementById('l_arriveTime').value = '';
   document.getElementById('l_amount').value = '';
+  document.getElementById('l_item').value = '';
   document.getElementById('l_description').value = '';
   toggleLateFields();
   document.getElementById('lateFormTitle').textContent = '➕ Add Penalty';
@@ -542,14 +570,24 @@ function renderLate() {
   tbody.innerHTML = pageItems.map(r => {
     const type = r.type || 'late';
     const badgeClass = type === 'late' ? 'badge-cash' : 'badge-party';
-    const details = type === 'late' ? ('Arrived ' + (r.arriveTime || '-')) : escapeHtml(r.description || '-');
+    const typeLabel = type === 'other' ? ('other / ' + (r.otherMode || 'cash')) : type;
+    let details;
+    if (type === 'late') {
+      details = 'Arrived ' + (r.arriveTime || '-');
+    } else {
+      const parts = [];
+      if (r.otherMode === 'party' && r.item) parts.push('🎉 ' + escapeHtml(r.item));
+      if (r.description) parts.push(escapeHtml(r.description));
+      details = parts.join(' — ') || '-';
+    }
+    const amtDisplay = (r.amount && r.amount > 0) ? ('₹' + r.amount) : '—';
     return `
     <tr>
       <td>${r.date}</td>
       <td><strong>${escapeHtml(r.employee)}</strong></td>
-      <td><span class="badge ${badgeClass}">${type}</span></td>
+      <td><span class="badge ${badgeClass}">${typeLabel}</span></td>
       <td>${details}</td>
-      <td class="pill-red">₹${r.amount || 0}</td>
+      <td class="pill-red">${amtDisplay}</td>
       <td>
         <button class="btn btn-small btn-edit" onclick="editLate('${r.id}')">Edit</button>
         <button class="btn btn-small btn-delete" onclick="deleteLate('${r.id}')">Del</button>

@@ -338,14 +338,24 @@ function renderLate(records, emp) {
   tbody.innerHTML = pageItems.map(x => {
     const t = x.type || 'late';
     const badgeClass = t === 'late' ? 'badge-cash' : 'badge-party';
-    const details = t === 'late' ? ('Arrived ' + (x.arriveTime || '-')) : escapeHtml(x.description || '-');
+    const typeLabel = t === 'other' ? ('other / ' + (x.otherMode || 'cash')) : t;
+    let details;
+    if (t === 'late') {
+      details = 'Arrived ' + (x.arriveTime || '-');
+    } else {
+      const parts = [];
+      if (x.otherMode === 'party' && x.item) parts.push('🎉 ' + escapeHtml(x.item));
+      if (x.description) parts.push(escapeHtml(x.description));
+      details = parts.join(' — ') || '-';
+    }
+    const amtDisplay = (x.amount && x.amount > 0) ? ('₹' + x.amount) : '—';
     return `
     <tr>
       <td>${x.date}</td>
       <td><strong>${escapeHtml(x.employee)}</strong></td>
-      <td><span class="badge ${badgeClass}">${t}</span></td>
+      <td><span class="badge ${badgeClass}">${typeLabel}</span></td>
       <td>${details}</td>
-      <td class="pill-red">₹${x.amount || 0}</td>
+      <td class="pill-red">${amtDisplay}</td>
     </tr>`;
   }).join('');
   const totalAmt = r.reduce((s, x) => s + (x.amount || 0), 0);
@@ -417,11 +427,13 @@ function exportCSV() {
   });
   sections.push('');
   sections.push('--- PENALTIES ---');
-  sections.push(['Date', 'Employee', 'Type', 'Details', 'Amount'].join(','));
+  sections.push(['Date', 'Employee', 'Type', 'Mode', 'Item', 'Details', 'Amount'].join(','));
   db.lateRecords.forEach(r => {
     const t = r.type || 'late';
+    const mode = t === 'other' ? (r.otherMode || 'cash') : '';
+    const item = r.item || '';
     const details = t === 'late' ? ('Arrived ' + (r.arriveTime || '')) : (r.description || '');
-    sections.push([r.date, r.employee, t, details, r.amount || 0].map(csvCell).join(','));
+    sections.push([r.date, r.employee, t, mode, item, details, r.amount || 0].map(csvCell).join(','));
   });
   sections.push('');
   sections.push('--- PAYMENTS ---');
