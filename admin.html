@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Late Records</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f9; color: #222; padding: 20px; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  .header { background: linear-gradient(135deg, #dc2626, #991b1b); color: #fff; padding: 24px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+  .header h1 { font-size: 22px; }
+  .header a { background: rgba(255,255,255,0.2); color: #fff; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; }
+  .login-box { max-width: 400px; margin: 80px auto; background: #fff; padding: 32px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .login-box h2 { margin-bottom: 20px; color: #333; text-align: center; }
+  .login-box input { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 12px; font-size: 14px; }
+  .login-box button { width: 100%; padding: 12px; background: #dc2626; color: #fff; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 600; }
+  .login-box button:hover { background: #b91c1c; }
+  .login-box .err { color: #dc2626; font-size: 13px; margin-top: 8px; text-align: center; }
+  .panel { background: #fff; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .panel h3 { margin-bottom: 16px; color: #333; font-size: 16px; }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .form-grid label { display: flex; flex-direction: column; font-size: 12px; color: #555; gap: 4px; }
+  .form-grid input, .form-grid select, .form-grid textarea { padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; font-family: inherit; }
+  .form-grid textarea { min-height: 60px; resize: vertical; }
+  .btn-row { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; }
+  .btn-primary { background: #dc2626; color: #fff; }
+  .btn-primary:hover { background: #b91c1c; }
+  .btn-save { background: #10b981; color: #fff; }
+  .btn-save:hover { background: #059669; }
+  .btn-secondary { background: #6b7280; color: #fff; }
+  .btn-github { background: #24292e; color: #fff; }
+  .btn-github:hover { background: #000; }
+  .btn-small { padding: 4px 10px; font-size: 12px; }
+  .btn-edit { background: #3b82f6; color: #fff; }
+  .btn-delete { background: #ef4444; color: #fff; }
+  table { width: 100%; border-collapse: collapse; min-width: 1000px; }
+  .table-wrap { overflow-x: auto; }
+  th { background: #f9fafb; text-align: left; padding: 10px; font-size: 11px; text-transform: uppercase; color: #555; border-bottom: 1px solid #e5e7eb; }
+  td { padding: 10px; font-size: 13px; border-bottom: 1px solid #f3f4f6; }
+  tr:hover td { background: #fafbfc; }
+  .conditional { display: none; }
+  .conditional.show { display: flex; }
+  .msg { padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; font-size: 13px; }
+  .msg-success { background: #d1fae5; color: #065f46; }
+  .msg-error { background: #fee2e2; color: #991b1b; }
+  .msg-info { background: #dbeafe; color: #1e40af; }
+  .github-section { background: #f9fafb; padding: 14px; border-radius: 8px; margin-top: 12px; }
+  .github-section input { font-family: monospace; font-size: 12px; }
+  details summary { cursor: pointer; padding: 8px 0; font-weight: 600; color: #333; }
+</style>
+</head>
+<body>
+
+<div id="loginSection" class="login-box">
+  <h2>🔒 Admin Login</h2>
+  <input type="password" id="pwd" placeholder="Enter admin password" onkeypress="if(event.key==='Enter')login()">
+  <button onclick="login()">Login</button>
+  <div class="err" id="loginErr"></div>
+</div>
+
+<div id="adminPanel" class="container" style="display:none;">
+  <div class="header">
+    <h1>🔧 Admin Panel — Late Records</h1>
+    <div>
+      <a href="index.html">👁 Public View</a>
+      <a href="#" onclick="logout();return false;" style="margin-left:8px;">Logout</a>
+    </div>
+  </div>
+
+  <div id="msgArea"></div>
+
+  <div class="panel">
+    <h3 id="formTitle">➕ Add New Late Record</h3>
+    <div class="form-grid">
+      <label>Date * <input type="date" id="f_date" required></label>
+      <label>Employee Name * <input type="text" id="f_employee" placeholder="e.g. Devendra" required></label>
+      <label>Arrive Time * <input type="time" id="f_arriveTime" required></label>
+      <label>Reason <input type="text" id="f_reason" placeholder="Traffic, personal..."></label>
+      <label>Penalty Paid?
+        <select id="f_penaltyPaid" onchange="toggleConditional()">
+          <option value="no">No</option>
+          <option value="yes">Yes</option>
+        </select>
+      </label>
+      <label class="conditional" id="c_mode">Mode
+        <select id="f_penaltyMode" onchange="toggleConditional()">
+          <option value="cash">Cash</option>
+          <option value="party">Party</option>
+        </select>
+      </label>
+      <label class="conditional" id="c_date">Penalty Date <input type="date" id="f_penaltyDate"></label>
+      <label class="conditional" id="c_party" style="grid-column: span 2;">Party Details (kya khilaya) <textarea id="f_partyDetails" placeholder="Pizza, biryani..."></textarea></label>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-save" onclick="saveRecord()">💾 Save Record</button>
+      <button class="btn btn-secondary" onclick="resetForm()">Clear</button>
+      <input type="hidden" id="f_editId" value="">
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>📋 All Records (<span id="recCount">0</span>)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Employee</th>
+            <th>Arrive</th>
+            <th>Reason</th>
+            <th>Paid</th>
+            <th>Mode</th>
+            <th>Pen. Date</th>
+            <th>Party</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>☁️ Save to GitHub</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">After editing, commit changes to GitHub repo so the public URL updates.</p>
+
+    <details open>
+      <summary>Option 1: Auto-commit via GitHub Token (Recommended)</summary>
+      <div class="github-section">
+        <p style="font-size:12px;color:#666;margin-bottom:8px;">
+          Create a <a href="https://github.com/settings/tokens/new?scopes=repo&description=Late-Records-Admin" target="_blank">Personal Access Token</a> with <code>repo</code> scope and paste below. Token is saved in your browser only.
+        </p>
+        <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxx" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:8px;">
+        <button class="btn btn-github" onclick="saveTokenAndCommit()">🚀 Commit to GitHub</button>
+      </div>
+    </details>
+
+    <details style="margin-top:12px;">
+      <summary>Option 2: Manual Download + Upload</summary>
+      <div class="github-section">
+        <p style="font-size:12px;color:#666;margin-bottom:8px;">Download <code>data.json</code> and upload manually to the repo.</p>
+        <button class="btn btn-secondary" onclick="downloadJSON()">⬇ Download data.json</button>
+        <a href="https://github.com/devendrakumar-max/Late-Records" target="_blank" class="btn btn-github" style="text-decoration:none;display:inline-block;">Open GitHub Repo</a>
+      </div>
+    </details>
+  </div>
+</div>
+
+<script>
+const ADMIN_PASSWORD = 'dev@123';
+const GITHUB_OWNER = 'devendrakumar-max';
+const GITHUB_REPO = 'Late-Records';
+const GITHUB_FILE = 'data.json';
+const GITHUB_BRANCH = 'main';
+
+let records = [];
+let dataFileSha = null;
+
+function login() {
+  const pwd = document.getElementById('pwd').value;
+  if (pwd === ADMIN_PASSWORD) {
+    sessionStorage.setItem('admin_auth', '1');
+    showPanel();
+  } else {
+    document.getElementById('loginErr').textContent = 'Wrong password!';
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem('admin_auth');
+  location.reload();
+}
+
+function showPanel() {
+  document.getElementById('loginSection').style.display = 'none';
+  document.getElementById('adminPanel').style.display = 'block';
+  loadData();
+  const savedToken = localStorage.getItem('gh_token');
+  if (savedToken) document.getElementById('ghToken').value = savedToken;
+}
+
+async function loadData() {
+  try {
+    const res = await fetch('data.json?t=' + Date.now());
+    const data = await res.json();
+    records = data.records || [];
+    renderTable();
+  } catch (e) {
+    showMsg('Error loading data.json', 'error');
+  }
+}
+
+function renderTable() {
+  const tbody = document.getElementById('tbody');
+  document.getElementById('recCount').textContent = records.length;
+  if (!records.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#888;padding:20px;">No records yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = records.map(r => `
+    <tr>
+      <td>${r.date}</td>
+      <td><strong>${escapeHtml(r.employee)}</strong></td>
+      <td>${r.arriveTime}</td>
+      <td>${escapeHtml(r.reason || '-')}</td>
+      <td>${r.penaltyPaid === 'yes' ? '✅' : '❌'}</td>
+      <td>${r.penaltyMode || '-'}</td>
+      <td>${r.penaltyDate || '-'}</td>
+      <td>${escapeHtml(r.partyDetails || '-')}</td>
+      <td>
+        <button class="btn btn-small btn-edit" onclick="editRecord('${r.id}')">Edit</button>
+        <button class="btn btn-small btn-delete" onclick="deleteRecord('${r.id}')">Del</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function toggleConditional() {
+  const paid = document.getElementById('f_penaltyPaid').value === 'yes';
+  const mode = document.getElementById('f_penaltyMode').value;
+  document.getElementById('c_mode').classList.toggle('show', paid);
+  document.getElementById('c_date').classList.toggle('show', paid);
+  document.getElementById('c_party').classList.toggle('show', paid && mode === 'party');
+}
+
+function saveRecord() {
+  const date = document.getElementById('f_date').value;
+  const employee = document.getElementById('f_employee').value.trim();
+  const arriveTime = document.getElementById('f_arriveTime').value;
+  if (!date || !employee || !arriveTime) {
+    showMsg('Date, Employee, and Arrive Time are required.', 'error');
+    return;
+  }
+  const paid = document.getElementById('f_penaltyPaid').value;
+  const rec = {
+    id: document.getElementById('f_editId').value || Date.now().toString(),
+    date,
+    employee,
+    arriveTime,
+    reason: document.getElementById('f_reason').value.trim(),
+    penaltyPaid: paid,
+    penaltyMode: paid === 'yes' ? document.getElementById('f_penaltyMode').value : '',
+    penaltyDate: paid === 'yes' ? document.getElementById('f_penaltyDate').value : '',
+    partyDetails: (paid === 'yes' && document.getElementById('f_penaltyMode').value === 'party') ? document.getElementById('f_partyDetails').value.trim() : ''
+  };
+  const editId = document.getElementById('f_editId').value;
+  if (editId) {
+    const idx = records.findIndex(r => r.id === editId);
+    if (idx >= 0) records[idx] = rec;
+    showMsg('Record updated. Click "Commit to GitHub" to publish.', 'info');
+  } else {
+    records.unshift(rec);
+    showMsg('Record added. Click "Commit to GitHub" to publish.', 'info');
+  }
+  resetForm();
+  renderTable();
+}
+
+function editRecord(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('f_editId').value = r.id;
+  document.getElementById('f_date').value = r.date;
+  document.getElementById('f_employee').value = r.employee;
+  document.getElementById('f_arriveTime').value = r.arriveTime;
+  document.getElementById('f_reason').value = r.reason || '';
+  document.getElementById('f_penaltyPaid').value = r.penaltyPaid;
+  document.getElementById('f_penaltyMode').value = r.penaltyMode || 'cash';
+  document.getElementById('f_penaltyDate').value = r.penaltyDate || '';
+  document.getElementById('f_partyDetails').value = r.partyDetails || '';
+  document.getElementById('formTitle').textContent = '✏️ Edit Record';
+  toggleConditional();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function deleteRecord(id) {
+  if (!confirm('Delete this record?')) return;
+  records = records.filter(r => r.id !== id);
+  renderTable();
+  showMsg('Deleted. Click "Commit to GitHub" to publish.', 'info');
+}
+
+function resetForm() {
+  document.getElementById('f_editId').value = '';
+  document.getElementById('f_date').value = '';
+  document.getElementById('f_employee').value = '';
+  document.getElementById('f_arriveTime').value = '';
+  document.getElementById('f_reason').value = '';
+  document.getElementById('f_penaltyPaid').value = 'no';
+  document.getElementById('f_penaltyMode').value = 'cash';
+  document.getElementById('f_penaltyDate').value = '';
+  document.getElementById('f_partyDetails').value = '';
+  document.getElementById('formTitle').textContent = '➕ Add New Late Record';
+  toggleConditional();
+}
+
+function downloadJSON() {
+  const payload = { records, lastUpdated: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'data.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function saveTokenAndCommit() {
+  const token = document.getElementById('ghToken').value.trim();
+  if (!token) { showMsg('Please enter GitHub token.', 'error'); return; }
+  localStorage.setItem('gh_token', token);
+  await commitToGitHub(token);
+}
+
+async function commitToGitHub(token) {
+  showMsg('Committing to GitHub...', 'info');
+  const apiBase = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${GITHUB_FILE}`;
+  try {
+    const getRes = await fetch(apiBase + '?ref=' + GITHUB_BRANCH, {
+      headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json' }
+    });
+    let sha = null;
+    if (getRes.ok) {
+      const info = await getRes.json();
+      sha = info.sha;
+    } else if (getRes.status !== 404) {
+      throw new Error('GitHub API error: ' + getRes.status);
+    }
+    const payload = { records, lastUpdated: new Date().toISOString() };
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2))));
+    const body = {
+      message: 'Update late records — ' + new Date().toISOString(),
+      content,
+      branch: GITHUB_BRANCH
+    };
+    if (sha) body.sha = sha;
+    const putRes = await fetch(apiBase, {
+      method: 'PUT',
+      headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!putRes.ok) {
+      const err = await putRes.json();
+      throw new Error(err.message || 'Commit failed');
+    }
+    showMsg('✅ Successfully committed to GitHub! Public page will update in ~1 min.', 'success');
+  } catch (e) {
+    showMsg('❌ Error: ' + e.message, 'error');
+  }
+}
+
+function showMsg(text, type) {
+  const area = document.getElementById('msgArea');
+  area.innerHTML = `<div class="msg msg-${type}">${text}</div>`;
+  if (type === 'success') setTimeout(() => area.innerHTML = '', 5000);
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+if (sessionStorage.getItem('admin_auth') === '1') showPanel();
+</script>
+</body>
+</html>
