@@ -769,6 +769,8 @@ async function saveLate() {
   if (type === 'late') {
     const arriveTime = document.getElementById('l_arriveTime').value;
     if (!arriveTime) { showMsg('Arrive Time required for Late.', 'error'); return; }
+    const dup = db.lateRecords.find(r => r.id !== editId && r.employee === employee && r.date === date && (r.type || 'late') === 'late');
+    if (dup) { showMsg(`${employee} ki ${date} ko already late penalty lagi hai. Same date pe duplicate nahi ho sakti.`, 'error'); return; }
     rec.arriveTime = arriveTime;
     rec.amount = db.penaltyPerDay;
   } else if (type === 'appraisal') {
