@@ -71,6 +71,24 @@
   .pagination button.active { background: #dc2626; color: #fff; border-color: #dc2626; }
   .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
   .pagination .page-info { font-size: 12px; color: #666; margin: 0 8px; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 20px; }
+  .modal-overlay.show { display: flex; }
+  .modal-box { background: #fff; border-radius: 12px; max-width: 480px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; animation: modalIn 0.18s ease-out; }
+  @keyframes modalIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal-head { padding: 18px 22px; background: linear-gradient(135deg, #dc2626, #991b1b); color: #fff; display: flex; align-items: center; gap: 10px; }
+  .modal-head .icon { font-size: 22px; }
+  .modal-head h3 { font-size: 16px; font-weight: 600; }
+  .modal-body { padding: 22px; color: #333; font-size: 14px; line-height: 1.55; }
+  .modal-body strong { color: #dc2626; }
+  .modal-body .stats { margin-top: 14px; padding: 12px 14px; background: #fef2f2; border-left: 3px solid #dc2626; border-radius: 4px; font-size: 13px; color: #7f1d1d; }
+  .modal-body .stats div { margin: 2px 0; }
+  .modal-foot { padding: 14px 22px; background: #f9fafb; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e5e7eb; }
+  .modal-foot button { padding: 9px 18px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; }
+  .modal-foot .btn-cancel { background: #e5e7eb; color: #333; }
+  .modal-foot .btn-cancel:hover { background: #d1d5db; }
+  .modal-foot .btn-confirm { background: #dc2626; color: #fff; }
+  .modal-foot .btn-confirm:hover { background: #b91c1c; }
 </style>
 </head>
 <body>
@@ -288,6 +306,17 @@
   </div>
 </div>
 
+<div id="confirmModal" class="modal-overlay" onclick="if(event.target===this)closeConfirmModal()">
+  <div class="modal-box">
+    <div class="modal-head"><span class="icon">⚠️</span><h3 id="cm_title">Confirm Delete</h3></div>
+    <div class="modal-body" id="cm_body"></div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeConfirmModal()">Cancel</button>
+      <button class="btn-confirm" id="cm_confirmBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const ADMIN_PASSWORD = 'dev@123';
 const GITHUB_OWNER = 'devendrakumar-max';
@@ -428,18 +457,44 @@ function addEmployee() {
   autoCommit('Employee added: ' + name);
 }
 
-async function deleteEmployee(id) {
+function openConfirmModal({ title, bodyHtml, confirmLabel, onConfirm }) {
+  const modal = document.getElementById('confirmModal');
+  document.getElementById('cm_title').textContent = title || 'Confirm';
+  document.getElementById('cm_body').innerHTML = bodyHtml || '';
+  const btn = document.getElementById('cm_confirmBtn');
+  btn.textContent = confirmLabel || 'Delete';
+  const newBtn = btn.cloneNode(true);
+  btn.parentNode.replaceChild(newBtn, btn);
+  newBtn.addEventListener('click', async () => { closeConfirmModal(); await onConfirm(); });
+  modal.classList.add('show');
+}
+function closeConfirmModal() { document.getElementById('confirmModal').classList.remove('show'); }
+
+function deleteEmployee(id) {
   const emp = db.employees.find(e => e.id === id);
   if (!emp) return;
-  const hasRecords = db.lateRecords.some(r => r.employee === emp.name) || db.payments.some(p => p.employee === emp.name);
-  if (hasRecords) {
-    if (!confirm(`${emp.name} has late/payment records. Delete anyway? (records will stay but orphaned)`)) return;
-  } else {
-    if (!confirm('Delete ' + emp.name + '?')) return;
-  }
-  db.employees = db.employees.filter(e => e.id !== id);
-  renderAll();
-  await autoCommit('Employee deleted: ' + emp.name);
+  const penaltyCount = db.lateRecords.filter(r => r.employee === emp.name).length;
+  const paymentCount = db.payments.filter(p => p.employee === emp.name).length;
+  const hasRecords = penaltyCount + paymentCount > 0;
+  const stats = hasRecords
+    ? `<div class="stats">
+         <div>📋 Penalty records: <strong>${penaltyCount}</strong></div>
+         <div>💰 Payment records: <strong>${paymentCount}</strong></div>
+       </div>
+       <p style="margin-top:12px;color:#991b1b;font-weight:500;">⚠ Yeh action undo nahi hoga.</p>`
+    : '<p style="margin-top:8px;color:#555;">No related records found.</p>';
+  openConfirmModal({
+    title: 'Delete Employee',
+    bodyHtml: `Aap <strong>${escapeHtml(emp.name)}</strong> ko delete kar rahe ho. Iske saare penalty aur payment records bhi hamesha ke liye delete ho jayenge.${stats}`,
+    confirmLabel: hasRecords ? `Delete Employee + ${penaltyCount + paymentCount} Records` : 'Delete Employee',
+    onConfirm: async () => {
+      db.lateRecords = db.lateRecords.filter(r => r.employee !== emp.name);
+      db.payments = db.payments.filter(p => p.employee !== emp.name);
+      db.employees = db.employees.filter(e => e.id !== id);
+      renderAll();
+      await autoCommit(`Employee deleted: ${emp.name} (+ ${penaltyCount} penalties, ${paymentCount} payments)`);
+    }
+  });
 }
 
 function renderEmployees() {
