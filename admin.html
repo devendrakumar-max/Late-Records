@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Late Records</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f9; color: #222; padding: 20px; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  .header { background: linear-gradient(135deg, #dc2626, #991b1b); color: #fff; padding: 20px 24px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+  .header h1 { font-size: 20px; }
+  .header a { background: rgba(255,255,255,0.2); color: #fff; padding: 8px 14px; border-radius: 6px; text-decoration: none; font-size: 13px; margin-left: 6px; }
+  .login-box { max-width: 400px; margin: 80px auto; background: #fff; padding: 32px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .login-box h2 { margin-bottom: 20px; color: #333; text-align: center; }
+  .login-box input { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 12px; font-size: 14px; }
+  .login-box button { width: 100%; padding: 12px; background: #dc2626; color: #fff; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 600; }
+  .login-box .err { color: #dc2626; font-size: 13px; margin-top: 8px; text-align: center; }
+
+  .tabs { display: flex; gap: 4px; background: #fff; padding: 6px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow-x: auto; }
+  .tab { padding: 10px 18px; border-radius: 6px; cursor: pointer; font-size: 13px; color: #555; white-space: nowrap; border: none; background: transparent; font-weight: 500; }
+  .tab.active { background: #dc2626; color: #fff; }
+  .tab:hover:not(.active) { background: #f3f4f6; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .panel { background: #fff; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .panel h3 { margin-bottom: 16px; color: #333; font-size: 16px; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: #fff; padding: 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .stat-card .label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-card .value { font-size: 24px; font-weight: 700; color: #333; margin-top: 4px; }
+  .stat-card.red .value { color: #dc2626; }
+  .stat-card.green .value { color: #059669; }
+  .stat-card.orange .value { color: #ea580c; }
+
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .form-grid label { display: flex; flex-direction: column; font-size: 12px; color: #555; gap: 4px; }
+  .form-grid input, .form-grid select, .form-grid textarea { padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; font-family: inherit; }
+  .form-grid textarea { min-height: 60px; resize: vertical; }
+  .btn-row { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; }
+  .btn-save { background: #10b981; color: #fff; }
+  .btn-save:hover { background: #059669; }
+  .btn-secondary { background: #6b7280; color: #fff; }
+  .btn-small { padding: 4px 10px; font-size: 12px; }
+  .btn-edit { background: #3b82f6; color: #fff; }
+  .btn-delete { background: #ef4444; color: #fff; }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #f9fafb; text-align: left; padding: 10px; font-size: 11px; text-transform: uppercase; color: #555; border-bottom: 1px solid #e5e7eb; }
+  td { padding: 10px; font-size: 13px; border-bottom: 1px solid #f3f4f6; }
+  tr:hover td { background: #fafbfc; }
+  .conditional { display: none; }
+  .conditional.show { display: flex; }
+  .msg { padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; font-size: 13px; }
+  .msg-success { background: #d1fae5; color: #065f46; }
+  .msg-error { background: #fee2e2; color: #991b1b; }
+  .msg-info { background: #dbeafe; color: #1e40af; }
+  .badge { padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .badge-cash { background: #dbeafe; color: #1e40af; }
+  .badge-party { background: #fef3c7; color: #92400e; }
+  .pill-red { color: #dc2626; font-weight: 600; }
+  .pill-green { color: #059669; font-weight: 600; }
+  .party-note { font-size: 11px; color: #666; font-style: italic; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<div id="loginSection" class="login-box">
+  <h2>🔒 Admin Login</h2>
+  <input type="password" id="pwd" placeholder="Enter admin password" onkeypress="if(event.key==='Enter')login()">
+  <button onclick="login()">Login</button>
+  <div class="err" id="loginErr"></div>
+</div>
+
+<div id="adminPanel" class="container" style="display:none;">
+  <div class="header">
+    <h1>🔧 Admin Panel — Late Records</h1>
+    <div>
+      <a href="index.html">👁 Public View</a>
+      <a href="#" onclick="logout();return false;">Logout</a>
+    </div>
+  </div>
+
+  <div id="msgArea"></div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('dashboard', this)">📊 Dashboard</button>
+    <button class="tab" onclick="showTab('employees', this)">👥 Employees</button>
+    <button class="tab" onclick="showTab('late', this)">⏰ Late Records</button>
+    <button class="tab" onclick="showTab('payments', this)">💰 Payments</button>
+    <button class="tab" onclick="showTab('settings', this)">⚙️ Settings</button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="tab-dashboard" class="tab-content active">
+    <div class="stats-grid" id="overallStats"></div>
+    <div class="panel">
+      <h3>📈 Per Employee Summary</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Late Days</th>
+              <th>Total Penalty (₹)</th>
+              <th>Paid (₹)</th>
+              <th>Pending (₹)</th>
+            </tr>
+          </thead>
+          <tbody id="summaryBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- EMPLOYEES -->
+  <div id="tab-employees" class="tab-content">
+    <div class="panel">
+      <h3>➕ Add Employee</h3>
+      <div class="form-grid">
+        <label>Name * <input type="text" id="emp_name" placeholder="e.g. Devendra Kumar"></label>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-save" onclick="addEmployee()">💾 Add Employee</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>👥 All Employees (<span id="empCount">0</span>)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Name</th><th>Added On</th><th>Action</th></tr></thead>
+          <tbody id="empBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- LATE RECORDS -->
+  <div id="tab-late" class="tab-content">
+    <div class="panel">
+      <h3 id="lateFormTitle">➕ Add Late Entry</h3>
+      <p style="font-size:12px;color:#666;margin-bottom:12px;">Each late entry = ₹<span id="penaltyAmtDisplay">120</span> penalty (auto)</p>
+      <div class="form-grid">
+        <label>Employee *
+          <select id="l_employee"><option value="">-- Select --</option></select>
+        </label>
+        <label>Date * <input type="date" id="l_date"></label>
+        <label>Arrive Time * <input type="time" id="l_arriveTime"></label>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-save" onclick="saveLate()">💾 Save Late Entry</button>
+        <button class="btn btn-secondary" onclick="resetLateForm()">Clear</button>
+        <input type="hidden" id="l_editId" value="">
+      </div>
+    </div>
+    <div class="panel">
+      <h3>⏰ All Late Records (<span id="lateCount">0</span>)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Employee</th><th>Arrive</th><th>Penalty</th><th>Action</th></tr></thead>
+          <tbody id="lateBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAYMENTS -->
+  <div id="tab-payments" class="tab-content">
+    <div class="panel">
+      <h3 id="payFormTitle">➕ Add Payment</h3>
+      <div class="form-grid">
+        <label>Employee *
+          <select id="p_employee"><option value="">-- Select --</option></select>
+        </label>
+        <label>Date * <input type="date" id="p_date"></label>
+        <label>Mode *
+          <select id="p_mode" onchange="togglePartyField()">
+            <option value="cash">Cash</option>
+            <option value="party">Party</option>
+          </select>
+        </label>
+        <label>Amount (₹) * <input type="number" id="p_amount" min="0" step="1" placeholder="500"></label>
+        <label class="conditional" id="c_party" style="grid-column: span 2;">Party Items (optional)
+          <textarea id="p_partyItems" placeholder="Pizza, biryani, cold drinks..."></textarea>
+        </label>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-save" onclick="savePayment()">💾 Save Payment</button>
+        <button class="btn btn-secondary" onclick="resetPayForm()">Clear</button>
+        <input type="hidden" id="p_editId" value="">
+      </div>
+    </div>
+    <div class="panel">
+      <h3>💰 All Payments (<span id="payCount">0</span>)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Employee</th><th>Mode</th><th>Amount</th><th>Party Items</th><th>Action</th></tr></thead>
+          <tbody id="payBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="tab-settings" class="tab-content">
+    <div class="panel">
+      <h3>⚙️ Penalty Settings</h3>
+      <div class="form-grid">
+        <label>Penalty per late day (₹) <input type="number" id="s_penalty" min="1" step="1"></label>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-save" onclick="savePenalty()">💾 Save</button>
+      </div>
+    </div>
+    <div class="panel" style="background:#f9fafb;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:13px;color:#555;">
+          <strong>GitHub Auto-sync:</strong> <span id="tokenStatus">Checking...</span>
+        </div>
+        <div>
+          <button class="btn btn-small btn-secondary" onclick="changeToken()">🔑 Change Token</button>
+          <button class="btn btn-small btn-secondary" onclick="downloadJSON()">⬇ Backup JSON</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ADMIN_PASSWORD = 'dev@123';
+const GITHUB_OWNER = 'devendrakumar-max';
+const GITHUB_REPO = 'Late-Records';
+const GITHUB_FILE = 'data.json';
+const GITHUB_BRANCH = 'main';
+const DATA_URL = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${GITHUB_FILE}`;
+
+let db = { employees: [], lateRecords: [], payments: [], penaltyPerDay: 120 };
+
+function login() {
+  if (document.getElementById('pwd').value === ADMIN_PASSWORD) {
+    sessionStorage.setItem('admin_auth', '1');
+    showPanel();
+  } else {
+    document.getElementById('loginErr').textContent = 'Wrong password!';
+  }
+}
+function logout() { sessionStorage.removeItem('admin_auth'); location.reload(); }
+
+function showPanel() {
+  document.getElementById('loginSection').style.display = 'none';
+  document.getElementById('adminPanel').style.display = 'block';
+  loadData();
+  updateTokenStatus();
+}
+
+function showTab(name, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+async function loadData() {
+  try {
+    const res = await fetch(DATA_URL + '?t=' + Date.now());
+    const data = await res.json();
+    db.employees = data.employees || [];
+    db.lateRecords = data.lateRecords || [];
+    db.payments = data.payments || [];
+    db.penaltyPerDay = data.penaltyPerDay || 120;
+    renderAll();
+  } catch (e) {
+    showMsg('Error loading data from GitHub.', 'error');
+  }
+}
+
+function renderAll() {
+  document.getElementById('penaltyAmtDisplay').textContent = db.penaltyPerDay;
+  document.getElementById('s_penalty').value = db.penaltyPerDay;
+  renderEmployeeDropdowns();
+  renderEmployees();
+  renderLate();
+  renderPayments();
+  renderDashboard();
+}
+
+function renderEmployeeDropdowns() {
+  const opts = '<option value="">-- Select --</option>' +
+    db.employees.map(e => `<option value="${escapeHtml(e.name)}">${escapeHtml(e.name)}</option>`).join('');
+  document.getElementById('l_employee').innerHTML = opts;
+  document.getElementById('p_employee').innerHTML = opts;
+}
+
+// ---------- EMPLOYEES ----------
+function addEmployee() {
+  const name = document.getElementById('emp_name').value.trim();
+  if (!name) { showMsg('Name required.', 'error'); return; }
+  if (db.employees.some(e => e.name.toLowerCase() === name.toLowerCase())) {
+    showMsg('Employee already exists.', 'error'); return;
+  }
+  db.employees.push({ id: Date.now().toString(), name, addedOn: todayStr() });
+  document.getElementById('emp_name').value = '';
+  renderAll();
+  autoCommit('Employee added: ' + name);
+}
+
+async function deleteEmployee(id) {
+  const emp = db.employees.find(e => e.id === id);
+  if (!emp) return;
+  const hasRecords = db.lateRecords.some(r => r.employee === emp.name) || db.payments.some(p => p.employee === emp.name);
+  if (hasRecords) {
+    if (!confirm(`${emp.name} has late/payment records. Delete anyway? (records will stay but orphaned)`)) return;
+  } else {
+    if (!confirm('Delete ' + emp.name + '?')) return;
+  }
+  db.employees = db.employees.filter(e => e.id !== id);
+  renderAll();
+  await autoCommit('Employee deleted: ' + emp.name);
+}
+
+function renderEmployees() {
+  const tbody = document.getElementById('empBody');
+  document.getElementById('empCount').textContent = db.employees.length;
+  if (!db.employees.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888;padding:20px;">No employees yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = db.employees.map((e, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td><strong>${escapeHtml(e.name)}</strong></td>
+      <td>${e.addedOn || '-'}</td>
+      <td><button class="btn btn-small btn-delete" onclick="deleteEmployee('${e.id}')">Del</button></td>
+    </tr>`).join('');
+}
+
+// ---------- LATE RECORDS ----------
+async function saveLate() {
+  const employee = document.getElementById('l_employee').value;
+  const date = document.getElementById('l_date').value;
+  const arriveTime = document.getElementById('l_arriveTime').value;
+  if (!employee || !date || !arriveTime) { showMsg('All fields required.', 'error'); return; }
+  const editId = document.getElementById('l_editId').value;
+  const rec = { id: editId || Date.now().toString(), employee, date, arriveTime };
+  if (editId) {
+    const idx = db.lateRecords.findIndex(r => r.id === editId);
+    if (idx >= 0) db.lateRecords[idx] = rec;
+  } else {
+    db.lateRecords.unshift(rec);
+  }
+  resetLateForm();
+  renderAll();
+  await autoCommit(editId ? 'Late entry updated' : 'Late entry added');
+}
+
+function editLate(id) {
+  const r = db.lateRecords.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('l_editId').value = r.id;
+  document.getElementById('l_employee').value = r.employee;
+  document.getElementById('l_date').value = r.date;
+  document.getElementById('l_arriveTime').value = r.arriveTime;
+  document.getElementById('lateFormTitle').textContent = '✏️ Edit Late Entry';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function deleteLate(id) {
+  if (!confirm('Delete this late entry?')) return;
+  db.lateRecords = db.lateRecords.filter(r => r.id !== id);
+  renderAll();
+  await autoCommit('Late entry deleted');
+}
+
+function resetLateForm() {
+  document.getElementById('l_editId').value = '';
+  document.getElementById('l_employee').value = '';
+  document.getElementById('l_date').value = '';
+  document.getElementById('l_arriveTime').value = '';
+  document.getElementById('lateFormTitle').textContent = '➕ Add Late Entry';
+}
+
+function renderLate() {
+  const tbody = document.getElementById('lateBody');
+  document.getElementById('lateCount').textContent = db.lateRecords.length;
+  if (!db.lateRecords.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;padding:20px;">No late records yet.</td></tr>';
+    return;
+  }
+  const sorted = [...db.lateRecords].sort((a, b) => b.date.localeCompare(a.date));
+  tbody.innerHTML = sorted.map(r => `
+    <tr>
+      <td>${r.date}</td>
+      <td><strong>${escapeHtml(r.employee)}</strong></td>
+      <td>${r.arriveTime}</td>
+      <td class="pill-red">₹${db.penaltyPerDay}</td>
+      <td>
+        <button class="btn btn-small btn-edit" onclick="editLate('${r.id}')">Edit</button>
+        <button class="btn btn-small btn-delete" onclick="deleteLate('${r.id}')">Del</button>
+      </td>
+    </tr>`).join('');
+}
+
+// ---------- PAYMENTS ----------
+function togglePartyField() {
+  const mode = document.getElementById('p_mode').value;
+  document.getElementById('c_party').classList.toggle('show', mode === 'party');
+}
+
+async function savePayment() {
+  const employee = document.getElementById('p_employee').value;
+  const date = document.getElementById('p_date').value;
+  const mode = document.getElementById('p_mode').value;
+  const amount = parseInt(document.getElementById('p_amount').value, 10);
+  if (!employee || !date || !mode || !amount || amount <= 0) { showMsg('Fill required fields with valid amount.', 'error'); return; }
+  const editId = document.getElementById('p_editId').value;
+  const rec = {
+    id: editId || Date.now().toString(),
+    employee, date, mode, amount,
+    partyItems: mode === 'party' ? document.getElementById('p_partyItems').value.trim() : ''
+  };
+  if (editId) {
+    const idx = db.payments.findIndex(p => p.id === editId);
+    if (idx >= 0) db.payments[idx] = rec;
+  } else {
+    db.payments.unshift(rec);
+  }
+  resetPayForm();
+  renderAll();
+  await autoCommit(editId ? 'Payment updated' : 'Payment added');
+}
+
+function editPayment(id) {
+  const r = db.payments.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('p_editId').value = r.id;
+  document.getElementById('p_employee').value = r.employee;
+  document.getElementById('p_date').value = r.date;
+  document.getElementById('p_mode').value = r.mode;
+  document.getElementById('p_amount').value = r.amount;
+  document.getElementById('p_partyItems').value = r.partyItems || '';
+  togglePartyField();
+  document.getElementById('payFormTitle').textContent = '✏️ Edit Payment';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function deletePayment(id) {
+  if (!confirm('Delete this payment?')) return;
+  db.payments = db.payments.filter(p => p.id !== id);
+  renderAll();
+  await autoCommit('Payment deleted');
+}
+
+function resetPayForm() {
+  document.getElementById('p_editId').value = '';
+  document.getElementById('p_employee').value = '';
+  document.getElementById('p_date').value = '';
+  document.getElementById('p_mode').value = 'cash';
+  document.getElementById('p_amount').value = '';
+  document.getElementById('p_partyItems').value = '';
+  togglePartyField();
+  document.getElementById('payFormTitle').textContent = '➕ Add Payment';
+}
+
+function renderPayments() {
+  const tbody = document.getElementById('payBody');
+  document.getElementById('payCount').textContent = db.payments.length;
+  if (!db.payments.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;padding:20px;">No payments yet.</td></tr>';
+    return;
+  }
+  const sorted = [...db.payments].sort((a, b) => b.date.localeCompare(a.date));
+  tbody.innerHTML = sorted.map(p => `
+    <tr>
+      <td>${p.date}</td>
+      <td><strong>${escapeHtml(p.employee)}</strong></td>
+      <td><span class="badge badge-${p.mode}">${p.mode}</span></td>
+      <td class="pill-green">₹${p.amount}</td>
+      <td>${p.partyItems ? escapeHtml(p.partyItems) : '-'}</td>
+      <td>
+        <button class="btn btn-small btn-edit" onclick="editPayment('${p.id}')">Edit</button>
+        <button class="btn btn-small btn-delete" onclick="deletePayment('${p.id}')">Del</button>
+      </td>
+    </tr>`).join('');
+}
+
+// ---------- DASHBOARD ----------
+function renderDashboard() {
+  const totalLate = db.lateRecords.length;
+  const totalPenalty = totalLate * db.penaltyPerDay;
+  const totalPaid = db.payments.reduce((s, p) => s + (p.amount || 0), 0);
+  const totalPending = Math.max(0, totalPenalty - totalPaid);
+  document.getElementById('overallStats').innerHTML = `
+    <div class="stat-card"><div class="label">Total Employees</div><div class="value">${db.employees.length}</div></div>
+    <div class="stat-card"><div class="label">Total Late Days</div><div class="value">${totalLate}</div></div>
+    <div class="stat-card red"><div class="label">Total Penalty</div><div class="value">₹${totalPenalty}</div></div>
+    <div class="stat-card green"><div class="label">Total Paid</div><div class="value">₹${totalPaid}</div></div>
+    <div class="stat-card orange"><div class="label">Total Pending</div><div class="value">₹${totalPending}</div></div>
+  `;
+  const tbody = document.getElementById('summaryBody');
+  if (!db.employees.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;padding:20px;">No employees yet.</td></tr>';
+    return;
+  }
+  const rows = db.employees.map(emp => {
+    const lateDays = db.lateRecords.filter(r => r.employee === emp.name).length;
+    const penalty = lateDays * db.penaltyPerDay;
+    const paid = db.payments.filter(p => p.employee === emp.name).reduce((s, p) => s + (p.amount || 0), 0);
+    const pending = Math.max(0, penalty - paid);
+    return { name: emp.name, lateDays, penalty, paid, pending };
+  }).sort((a, b) => b.pending - a.pending);
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td><strong>${escapeHtml(r.name)}</strong></td>
+      <td>${r.lateDays}</td>
+      <td>₹${r.penalty}</td>
+      <td class="pill-green">₹${r.paid}</td>
+      <td class="${r.pending > 0 ? 'pill-red' : 'pill-green'}">₹${r.pending}</td>
+    </tr>`).join('');
+}
+
+// ---------- SETTINGS ----------
+async function savePenalty() {
+  const v = parseInt(document.getElementById('s_penalty').value, 10);
+  if (!v || v <= 0) { showMsg('Enter valid amount.', 'error'); return; }
+  db.penaltyPerDay = v;
+  renderAll();
+  await autoCommit('Penalty updated to ₹' + v);
+}
+
+// ---------- UTILS ----------
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function showMsg(text, type) {
+  const area = document.getElementById('msgArea');
+  area.innerHTML = `<div class="msg msg-${type}">${text}</div>`;
+  if (type === 'success') setTimeout(() => area.innerHTML = '', 5000);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function downloadJSON() {
+  const payload = { ...db, lastUpdated: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'data.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ---------- GITHUB SYNC ----------
+function getToken() {
+  let token = localStorage.getItem('gh_token');
+  if (!token) {
+    token = prompt('Enter your GitHub Personal Access Token (saved in browser):\n\nCreate at: https://github.com/settings/tokens/new?scopes=repo');
+    if (token && token.trim()) { localStorage.setItem('gh_token', token.trim()); return token.trim(); }
+    return null;
+  }
+  return token;
+}
+
+function changeToken() {
+  const token = prompt('Enter new GitHub token:', localStorage.getItem('gh_token') || '');
+  if (token !== null) {
+    if (token.trim()) { localStorage.setItem('gh_token', token.trim()); showMsg('Token updated.', 'success'); }
+    else { localStorage.removeItem('gh_token'); showMsg('Token removed.', 'info'); }
+    updateTokenStatus();
+  }
+}
+
+function updateTokenStatus() {
+  const token = localStorage.getItem('gh_token');
+  const el = document.getElementById('tokenStatus');
+  if (!el) return;
+  el.innerHTML = token
+    ? '<span style="color:#059669;">✅ Enabled</span>'
+    : '<span style="color:#dc2626;">⚠ Not set</span> — prompts on first save';
+}
+
+async function autoCommit(actionLabel) {
+  const token = getToken();
+  if (!token) { showMsg(actionLabel + ' locally — NOT synced to GitHub (no token)!', 'error'); return; }
+  showMsg(actionLabel + '. Syncing to GitHub...', 'info');
+  const apiBase = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${GITHUB_FILE}`;
+  try {
+    const getRes = await fetch(apiBase + '?ref=' + GITHUB_BRANCH, {
+      headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json' }
+    });
+    let sha = null;
+    if (getRes.ok) sha = (await getRes.json()).sha;
+    else if (getRes.status !== 404) throw new Error('GitHub API error: ' + getRes.status);
+    const payload = { ...db, lastUpdated: new Date().toISOString() };
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2))));
+    const body = { message: actionLabel + ' — ' + new Date().toISOString(), content, branch: GITHUB_BRANCH };
+    if (sha) body.sha = sha;
+    const putRes = await fetch(apiBase, {
+      method: 'PUT',
+      headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!putRes.ok) { const err = await putRes.json(); throw new Error(err.message || 'Commit failed'); }
+    showMsg('✅ Synced to GitHub! Public page updates in ~1 min.', 'success');
+  } catch (e) { showMsg('❌ Sync error: ' + e.message, 'error'); }
+  updateTokenStatus();
+}
+
+if (sessionStorage.getItem('admin_auth') === '1') showPanel();
+</script>
+</body>
+</html>
