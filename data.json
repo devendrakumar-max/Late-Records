@@ -43,16 +43,30 @@
   ],
   "lateRecords": [
     {
+      "id": "1792044795684",
+      "employee": "Devendra Yadav",
+      "date": "2026-09-14",
+      "type": "other",
+      "otherMode": "party",
+      "item": "Burger",
+      "amount": 0,
+      "description": "U3 Mock meeting me 'kr skte hai' ye word bolne ki wjh se"
+    },
+    {
       "id": "1792042493277",
       "employee": "Simran Saini",
       "date": "2026-10-14",
-      "arriveTime": "09:02"
+      "arriveTime": "09:02",
+      "type": "late",
+      "amount": 120
     },
     {
       "id": "1792041505235",
       "employee": "Simran Saini",
       "date": "2026-10-15",
-      "arriveTime": "09:02"
+      "arriveTime": "09:02",
+      "type": "late",
+      "amount": 120
     }
   ],
   "payments": [
@@ -74,5 +88,5 @@
     }
   ],
   "penaltyPerDay": 120,
-  "lastUpdated": "2026-10-15T05:37:04.227Z"
+  "lastUpdated": "2026-10-15T06:13:16.520Z"
 }
