@@ -43,6 +43,14 @@
   ],
   "lateRecords": [
     {
+      "id": "1792067102943",
+      "employee": "Arti Yadav",
+      "date": "2026-10-02",
+      "type": "late",
+      "arriveTime": "09:03",
+      "amount": 120
+    },
+    {
       "id": "1792066831666",
       "employee": "Arti Yadav",
       "date": "2026-10-01",
@@ -140,5 +148,5 @@
     }
   ],
   "penaltyPerDay": 120,
-  "lastUpdated": "2026-10-15T12:23:33.301Z"
+  "lastUpdated": "2026-10-15T12:25:03.596Z"
 }
