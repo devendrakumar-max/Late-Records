@@ -539,6 +539,30 @@ function openConfirmModal({ title, bodyHtml, confirmLabel, onConfirm }) {
 }
 function closeConfirmModal() { document.getElementById('confirmModal').classList.remove('show'); }
 
+function showPendingPartiesModal() {
+  const data = window._pendingPartyData || { items: {}, records: [] };
+  const items = data.items || {};
+  const recs = data.records || [];
+  const keys = Object.keys(items).sort();
+  if (!recs.length) {
+    openConfirmModal({ title: '🎉 Pending Parties', bodyHtml: '<p style="color:#555;">Koi party pending nahi hai 🎊</p>', confirmLabel: 'OK', onConfirm: () => {} });
+    return;
+  }
+  // group pending records by employee
+  const byEmp = {};
+  recs.forEach(r => { if (!byEmp[r.employee]) byEmp[r.employee] = []; byEmp[r.employee].push(r); });
+  const itemList = keys.map(k => `<span style="display:inline-block;background:#fce7f3;color:#9d174d;padding:4px 10px;border-radius:12px;margin:3px;font-size:13px;font-weight:500;">${items[k]} × ${escapeHtml(k)}</span>`).join('');
+  const empList = Object.keys(byEmp).sort().map(emp => {
+    const list = byEmp[emp].map(r => `<li>${escapeHtml(r.item || 'Item')} <span style="color:#888;font-size:11px;">(${r.date})</span></li>`).join('');
+    return `<div style="margin-top:10px;"><strong>${escapeHtml(emp)}</strong><ul style="margin:4px 0 0 20px;padding:0;font-size:13px;color:#555;">${list}</ul></div>`;
+  }).join('');
+  const body = `
+    <div style="margin-bottom:12px;"><div style="font-size:12px;color:#666;margin-bottom:6px;">Total pending items:</div>${itemList}</div>
+    <div style="border-top:1px solid #eee;padding-top:10px;"><div style="font-size:12px;color:#666;margin-bottom:4px;">By employee:</div>${empList}</div>
+  `;
+  openConfirmModal({ title: '🎉 Pending Parties', bodyHtml: body, confirmLabel: 'OK', onConfirm: () => {} });
+}
+
 function deleteEmployee(id) {
   const emp = db.employees.find(e => e.id === id);
   if (!emp) return;
@@ -987,46 +1011,53 @@ function renderDashboard() {
   const totalPending = rowsAll.reduce((s, r) => s + r.pending, 0);
   const totalAdvance = rowsAll.reduce((s, r) => s + r.advance, 0);
   // Type-wise breakdown
-  const byType = { late: {amt:0,count:0,paid:0}, appraisal: {amt:0,count:0,paid:0}, otherCash: {amt:0,count:0,paid:0}, otherParty: {amt:0,count:0,done:0} };
+  const byType = { late: {amt:0,count:0,paid:0,pendingCount:0}, appraisal: {amt:0,count:0,paid:0,pendingCount:0}, otherCash: {amt:0,count:0,paid:0,pendingCount:0}, otherParty: {amt:0,count:0,done:0,pendingAmt:0} };
   const paidMap = computePaidMap();
+  const pendingParties = [];
   db.lateRecords.forEach(r => {
     const t = r.type || 'late';
     const amt = r.amount || 0;
-    if (t === 'late') { byType.late.amt += amt; byType.late.count++; if (paidMap[r.id] === 'paid') byType.late.paid += amt; }
-    else if (t === 'appraisal') { byType.appraisal.amt += amt; byType.appraisal.count++; if (paidMap[r.id] === 'paid') byType.appraisal.paid += amt; }
-    else if (t === 'other' && r.otherMode === 'cash') { byType.otherCash.amt += amt; byType.otherCash.count++; if (paidMap[r.id] === 'paid') byType.otherCash.paid += amt; }
-    else if (t === 'other' && r.otherMode === 'party') { byType.otherParty.amt += amt; byType.otherParty.count++; if (r.completed) byType.otherParty.done++; }
+    if (t === 'late') { byType.late.amt += amt; byType.late.count++; if (paidMap[r.id] === 'paid') byType.late.paid += amt; else byType.late.pendingCount++; }
+    else if (t === 'appraisal') { byType.appraisal.amt += amt; byType.appraisal.count++; if (paidMap[r.id] === 'paid') byType.appraisal.paid += amt; else byType.appraisal.pendingCount++; }
+    else if (t === 'other' && r.otherMode === 'cash') { byType.otherCash.amt += amt; byType.otherCash.count++; if (paidMap[r.id] === 'paid') byType.otherCash.paid += amt; else byType.otherCash.pendingCount++; }
+    else if (t === 'other' && r.otherMode === 'party') { byType.otherParty.amt += amt; byType.otherParty.count++; if (r.completed) byType.otherParty.done++; else { byType.otherParty.pendingAmt += amt; pendingParties.push(r); } }
   });
+  const latePending = byType.late.amt - byType.late.paid;
+  const apprPending = byType.appraisal.amt - byType.appraisal.paid;
+  const ocPending = byType.otherCash.amt - byType.otherCash.paid;
+  const partyPendingCount = byType.otherParty.count - byType.otherParty.done;
+  // aggregate pending party items
+  const partyItemMap = {};
+  pendingParties.forEach(r => { const k = r.item || 'Item'; partyItemMap[k] = (partyItemMap[k] || 0) + 1; });
+  const partySummary = Object.keys(partyItemMap).sort().map(k => `${partyItemMap[k]} ${k}`).join(', ') || '—';
+  window._pendingPartyData = { summary: partySummary, items: partyItemMap, records: pendingParties };
   document.getElementById('overallStats').innerHTML = `
-    <div class="stat-card"><div class="label">Total Employees</div><div class="value">${db.employees.length}</div></div>
-    <div class="stat-card"><div class="label">Total Penalties</div><div class="value">${totalRecords}</div></div>
-    <div class="stat-card red"><div class="label">Total Penalty</div><div class="value">₹${totalPenalty}</div></div>
-    <div class="stat-card green"><div class="label">Total Paid</div><div class="value">₹${totalPaid}</div></div>
+    <div class="stat-card"><div class="label">Employees</div><div class="value">${db.employees.length}</div></div>
     <div class="stat-card orange"><div class="label">Total Pending</div><div class="value">₹${totalPending}</div></div>
-    <div class="stat-card green"><div class="label">Total Advance</div><div class="value">₹${totalAdvance}</div></div>
+    <div class="stat-card green"><div class="label">Total Paid</div><div class="value">₹${totalPaid}</div></div>
   `;
   const typeBreakdown = document.getElementById('typeBreakdown');
   if (typeBreakdown) {
     typeBreakdown.innerHTML = `
       <div class="stat-card" style="border-left:4px solid #3b82f6;">
-        <div class="label">⏰ Late Total</div>
-        <div class="value">₹${byType.late.amt}</div>
-        <div style="font-size:11px;color:#666;margin-top:4px;">${byType.late.count} record${byType.late.count !== 1 ? 's' : ''} · Paid ₹${byType.late.paid}</div>
+        <div class="label">⏰ Late Pending</div>
+        <div class="value">₹${latePending}</div>
+        <div style="font-size:11px;color:#666;margin-top:4px;">${byType.late.pendingCount} pending · ${byType.late.count} total</div>
       </div>
       <div class="stat-card" style="border-left:4px solid #8b5cf6;">
-        <div class="label">📊 Appraisal Total</div>
-        <div class="value">₹${byType.appraisal.amt}</div>
-        <div style="font-size:11px;color:#666;margin-top:4px;">${byType.appraisal.count} record${byType.appraisal.count !== 1 ? 's' : ''} · Paid ₹${byType.appraisal.paid}</div>
+        <div class="label">📊 Appraisal Pending</div>
+        <div class="value">₹${apprPending}</div>
+        <div style="font-size:11px;color:#666;margin-top:4px;">${byType.appraisal.pendingCount} pending · ${byType.appraisal.count} total</div>
       </div>
       <div class="stat-card" style="border-left:4px solid #f59e0b;">
-        <div class="label">💵 Other (Cash) Total</div>
-        <div class="value">₹${byType.otherCash.amt}</div>
-        <div style="font-size:11px;color:#666;margin-top:4px;">${byType.otherCash.count} record${byType.otherCash.count !== 1 ? 's' : ''} · Paid ₹${byType.otherCash.paid}</div>
+        <div class="label">💵 Other Cash Pending</div>
+        <div class="value">₹${ocPending}</div>
+        <div style="font-size:11px;color:#666;margin-top:4px;">${byType.otherCash.pendingCount} pending · ${byType.otherCash.count} total</div>
       </div>
-      <div class="stat-card" style="border-left:4px solid #ec4899;">
-        <div class="label">🎉 Other (Party) Total</div>
-        <div class="value">${byType.otherParty.count}</div>
-        <div style="font-size:11px;color:#666;margin-top:4px;">${byType.otherParty.done} done · ${byType.otherParty.count - byType.otherParty.done} pending · ₹${byType.otherParty.amt}</div>
+      <div class="stat-card" style="border-left:4px solid #ec4899;cursor:pointer;" onclick="showPendingPartiesModal()" title="${partySummary.replace(/"/g,'&quot;')}">
+        <div class="label">🎉 Party Pending <span style="font-size:10px;color:#999;">(click)</span></div>
+        <div class="value">${partyPendingCount}</div>
+        <div style="font-size:11px;color:#666;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${partySummary}</div>
       </div>
     `;
   }
