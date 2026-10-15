@@ -65,6 +65,12 @@
   .pill-red { color: #dc2626; font-weight: 600; }
   .pill-green { color: #059669; font-weight: 600; }
   .party-note { font-size: 11px; color: #666; font-style: italic; margin-top: 2px; }
+  .pagination { display: flex; justify-content: center; gap: 4px; padding: 12px; flex-wrap: wrap; align-items: center; }
+  .pagination button { padding: 6px 10px; border: 1px solid #d1d5db; background: #fff; cursor: pointer; border-radius: 4px; font-size: 12px; min-width: 32px; }
+  .pagination button:hover:not(:disabled) { background: #f3f4f6; }
+  .pagination button.active { background: #dc2626; color: #fff; border-color: #dc2626; }
+  .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .pagination .page-info { font-size: 12px; color: #666; margin: 0 8px; }
 </style>
 </head>
 <body>
@@ -115,6 +121,7 @@
           <tbody id="summaryBody"></tbody>
         </table>
       </div>
+      <div class="pagination" id="summaryPg"></div>
     </div>
   </div>
 
@@ -122,10 +129,10 @@
   <div id="tab-employees" class="tab-content">
     <div class="panel">
       <h3>➕ Add Employee</h3>
-      <div class="form-grid">
-        <label>Name * <input type="text" id="emp_name" placeholder="e.g. Devendra Kumar"></label>
-      </div>
-      <div class="btn-row">
+      <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+        <label style="display:flex;flex-direction:column;font-size:12px;color:#555;gap:4px;flex:1;min-width:200px;">Name *
+          <input type="text" id="emp_name" placeholder="e.g. Devendra Kumar" onkeypress="if(event.key==='Enter')addEmployee()" style="padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+        </label>
         <button class="btn btn-save" onclick="addEmployee()">💾 Add Employee</button>
       </div>
     </div>
@@ -137,6 +144,7 @@
           <tbody id="empBody"></tbody>
         </table>
       </div>
+      <div class="pagination" id="empPg"></div>
     </div>
   </div>
 
@@ -145,15 +153,17 @@
     <div class="panel">
       <h3 id="lateFormTitle">➕ Add Late Entry</h3>
       <p style="font-size:12px;color:#666;margin-bottom:12px;">Each late entry = ₹<span id="penaltyAmtDisplay">120</span> penalty (auto)</p>
-      <div class="form-grid">
-        <label>Employee *
-          <select id="l_employee"><option value="">-- Select --</option></select>
+      <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+        <label style="display:flex;flex-direction:column;font-size:12px;color:#555;gap:4px;flex:1;min-width:160px;">Employee *
+          <select id="l_employee" style="padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;"><option value="">-- Select --</option></select>
         </label>
-        <label>Date * <input type="date" id="l_date"></label>
-        <label>Arrive Time * <input type="time" id="l_arriveTime"></label>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-save" onclick="saveLate()">💾 Save Late Entry</button>
+        <label style="display:flex;flex-direction:column;font-size:12px;color:#555;gap:4px;min-width:140px;">Date *
+          <input type="date" id="l_date" style="padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+        </label>
+        <label style="display:flex;flex-direction:column;font-size:12px;color:#555;gap:4px;min-width:120px;">Arrive Time *
+          <input type="time" id="l_arriveTime" style="padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+        </label>
+        <button class="btn btn-save" onclick="saveLate()">💾 Save</button>
         <button class="btn btn-secondary" onclick="resetLateForm()">Clear</button>
         <input type="hidden" id="l_editId" value="">
       </div>
@@ -174,6 +184,7 @@
           <tfoot id="lateFoot"></tfoot>
         </table>
       </div>
+      <div class="pagination" id="latePg"></div>
     </div>
   </div>
 
@@ -211,6 +222,7 @@
           <tbody id="payBody"></tbody>
         </table>
       </div>
+      <div class="pagination" id="payPg"></div>
     </div>
   </div>
 
@@ -218,10 +230,10 @@
   <div id="tab-settings" class="tab-content">
     <div class="panel">
       <h3>⚙️ Penalty Settings</h3>
-      <div class="form-grid">
-        <label>Penalty per late day (₹) <input type="number" id="s_penalty" min="1" step="1"></label>
-      </div>
-      <div class="btn-row">
+      <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+        <label style="display:flex;flex-direction:column;font-size:12px;color:#555;gap:4px;flex:1;min-width:200px;">Penalty per late day (₹)
+          <input type="number" id="s_penalty" min="1" step="1" style="padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+        </label>
         <button class="btn btn-save" onclick="savePenalty()">💾 Save</button>
       </div>
     </div>
@@ -248,6 +260,41 @@ const GITHUB_BRANCH = 'main';
 const DATA_URL = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${GITHUB_FILE}`;
 
 let db = { employees: [], lateRecords: [], payments: [], penaltyPerDay: 120 };
+const PAGE_SIZE = 20;
+const pageState = { emp: 1, late: 1, pay: 1, summary: 1 };
+
+function paginate(arr, page) {
+  const start = (page - 1) * PAGE_SIZE;
+  return arr.slice(start, start + PAGE_SIZE);
+}
+
+function renderPagination(containerId, total, currentPage, onChange) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+  let html = `<button onclick="${onChange}(1)" ${currentPage === 1 ? 'disabled' : ''}>«</button>`;
+  html += `<button onclick="${onChange}(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>‹</button>`;
+  const maxShow = 5;
+  let start = Math.max(1, currentPage - Math.floor(maxShow / 2));
+  let end = Math.min(totalPages, start + maxShow - 1);
+  if (end - start + 1 < maxShow) start = Math.max(1, end - maxShow + 1);
+  for (let i = start; i <= end; i++) {
+    html += `<button class="${i === currentPage ? 'active' : ''}" onclick="${onChange}(${i})">${i}</button>`;
+  }
+  html += `<span class="page-info">Page ${currentPage} of ${totalPages} (${total} records)</span>`;
+  html += `<button onclick="${onChange}(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>›</button>`;
+  html += `<button onclick="${onChange}(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>»</button>`;
+  el.innerHTML = html;
+}
+
+function goPage(key, renderFn) {
+  return function(p) { pageState[key] = p; renderFn(); window.scrollTo({ top: document.querySelector('.panel').offsetTop, behavior: 'smooth' }); };
+}
+const goEmpPage = (p) => { pageState.emp = p; renderEmployees(); };
+const goLatePage = (p) => { pageState.late = p; renderLate(); };
+const goPayPage = (p) => { pageState.pay = p; renderPayments(); };
+const goSummaryPage = (p) => { pageState.summary = p; renderDashboard(); };
 
 function login() {
   if (document.getElementById('pwd').value === ADMIN_PASSWORD) {
@@ -359,15 +406,21 @@ function renderEmployees() {
   document.getElementById('empCount').textContent = db.employees.length;
   if (!db.employees.length) {
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888;padding:20px;">No employees yet.</td></tr>';
+    renderPagination('empPg', 0, 1, 'goEmpPage');
     return;
   }
-  tbody.innerHTML = db.employees.map((e, i) => `
+  const totalPages = Math.max(1, Math.ceil(db.employees.length / PAGE_SIZE));
+  if (pageState.emp > totalPages) pageState.emp = totalPages;
+  const pageItems = paginate(db.employees, pageState.emp);
+  const startIdx = (pageState.emp - 1) * PAGE_SIZE;
+  tbody.innerHTML = pageItems.map((e, i) => `
     <tr>
-      <td>${i + 1}</td>
+      <td>${startIdx + i + 1}</td>
       <td><strong>${escapeHtml(e.name)}</strong></td>
       <td>${e.addedOn || '-'}</td>
       <td><button class="btn btn-small btn-delete" onclick="deleteEmployee('${e.id}')">Del</button></td>
     </tr>`).join('');
+  renderPagination('empPg', db.employees.length, pageState.emp, 'goEmpPage');
 }
 
 // ---------- LATE RECORDS ----------
@@ -424,10 +477,14 @@ function renderLate() {
   if (!filtered.length) {
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;padding:20px;">No late records.</td></tr>';
     if (tfoot) tfoot.innerHTML = '';
+    renderPagination('latePg', 0, 1, 'goLatePage');
     return;
   }
   const sorted = [...filtered].sort((a, b) => b.date.localeCompare(a.date));
-  tbody.innerHTML = sorted.map(r => `
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  if (pageState.late > totalPages) pageState.late = totalPages;
+  const pageItems = paginate(sorted, pageState.late);
+  tbody.innerHTML = pageItems.map(r => `
     <tr>
       <td>${r.date}</td>
       <td><strong>${escapeHtml(r.employee)}</strong></td>
@@ -448,6 +505,7 @@ function renderLate() {
       <td class="pill-red">₹${totalAmt}</td>
       <td></td>
     </tr>`;
+  renderPagination('latePg', filtered.length, pageState.late, 'goLatePage');
 }
 
 // ---------- PAYMENTS ----------
@@ -516,10 +574,14 @@ function renderPayments() {
   document.getElementById('payCount').textContent = db.payments.length;
   if (!db.payments.length) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;padding:20px;">No payments yet.</td></tr>';
+    renderPagination('payPg', 0, 1, 'goPayPage');
     return;
   }
   const sorted = [...db.payments].sort((a, b) => b.date.localeCompare(a.date));
-  tbody.innerHTML = sorted.map(p => `
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  if (pageState.pay > totalPages) pageState.pay = totalPages;
+  const pageItems = paginate(sorted, pageState.pay);
+  tbody.innerHTML = pageItems.map(p => `
     <tr>
       <td>${p.date}</td>
       <td><strong>${escapeHtml(p.employee)}</strong></td>
@@ -531,6 +593,7 @@ function renderPayments() {
         <button class="btn btn-small btn-delete" onclick="deletePayment('${p.id}')">Del</button>
       </td>
     </tr>`).join('');
+  renderPagination('payPg', db.payments.length, pageState.pay, 'goPayPage');
 }
 
 // ---------- DASHBOARD ----------
@@ -557,10 +620,14 @@ function renderDashboard() {
   const tbody = document.getElementById('summaryBody');
   if (!db.employees.length) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;padding:20px;">No employees yet.</td></tr>';
+    renderPagination('summaryPg', 0, 1, 'goSummaryPage');
     return;
   }
   const rows = rowsAll.sort((a, b) => b.pending - a.pending);
-  tbody.innerHTML = rows.map(r => `
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  if (pageState.summary > totalPages) pageState.summary = totalPages;
+  const pageItems = paginate(rows, pageState.summary);
+  tbody.innerHTML = pageItems.map(r => `
     <tr>
       <td><strong>${escapeHtml(r.name)}</strong></td>
       <td>${r.lateDays}</td>
@@ -569,6 +636,7 @@ function renderDashboard() {
       <td class="${r.pending > 0 ? 'pill-red' : 'pill-green'}">₹${r.pending}</td>
       <td class="${r.advance > 0 ? 'pill-green' : ''}">${r.advance > 0 ? '₹' + r.advance : '-'}</td>
     </tr>`).join('');
+  renderPagination('summaryPg', rows.length, pageState.summary, 'goSummaryPage');
 }
 
 // ---------- SETTINGS ----------

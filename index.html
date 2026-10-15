@@ -53,6 +53,12 @@
   .pill-red { color: #dc2626; font-weight: 600; }
   .pill-green { color: #059669; font-weight: 600; }
   .footer { text-align: center; color: #888; font-size: 12px; margin-top: 20px; }
+  .pagination { display: flex; justify-content: center; gap: 4px; padding: 12px; flex-wrap: wrap; align-items: center; }
+  .pagination button { padding: 6px 10px; border: 1px solid #d1d5db; background: #fff; cursor: pointer; border-radius: 4px; font-size: 12px; min-width: 32px; }
+  .pagination button:hover:not(:disabled) { background: #f3f4f6; }
+  .pagination button.active { background: #667eea; color: #fff; border-color: #667eea; }
+  .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .pagination .page-info { font-size: 12px; color: #666; margin: 0 8px; }
 </style>
 </head>
 <body>
@@ -100,6 +106,7 @@
           <tbody id="summaryBody"></tbody>
         </table>
       </div>
+      <div class="pagination" id="summaryPg"></div>
     </div>
   </div>
 
@@ -120,6 +127,7 @@
           <tfoot id="lateFoot"></tfoot>
         </table>
       </div>
+      <div class="pagination" id="latePg"></div>
     </div>
   </div>
 
@@ -143,6 +151,7 @@
           <tfoot id="payFoot"></tfoot>
         </table>
       </div>
+      <div class="pagination" id="payPg"></div>
     </div>
   </div>
 
@@ -152,6 +161,37 @@
 <script>
 const EMP_PASSWORD = 'emp@123';
 let db = { employees: [], lateRecords: [], payments: [], penaltyPerDay: 120 };
+const PAGE_SIZE = 20;
+const pageState = { late: 1, pay: 1, summary: 1 };
+
+function paginate(arr, page) {
+  const start = (page - 1) * PAGE_SIZE;
+  return arr.slice(start, start + PAGE_SIZE);
+}
+
+function renderPagination(containerId, total, currentPage, onChange) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+  let html = `<button onclick="${onChange}(1)" ${currentPage === 1 ? 'disabled' : ''}>«</button>`;
+  html += `<button onclick="${onChange}(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>‹</button>`;
+  const maxShow = 5;
+  let start = Math.max(1, currentPage - Math.floor(maxShow / 2));
+  let end = Math.min(totalPages, start + maxShow - 1);
+  if (end - start + 1 < maxShow) start = Math.max(1, end - maxShow + 1);
+  for (let i = start; i <= end; i++) {
+    html += `<button class="${i === currentPage ? 'active' : ''}" onclick="${onChange}(${i})">${i}</button>`;
+  }
+  html += `<span class="page-info">Page ${currentPage} of ${totalPages} (${total} records)</span>`;
+  html += `<button onclick="${onChange}(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>›</button>`;
+  html += `<button onclick="${onChange}(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>»</button>`;
+  el.innerHTML = html;
+}
+
+const goLatePage = (p) => { pageState.late = p; renderAll(); };
+const goPayPage = (p) => { pageState.pay = p; renderAll(); };
+const goSummaryPage = (p) => { pageState.summary = p; renderAll(); };
 
 function login() {
   if (document.getElementById('pwd').value === EMP_PASSWORD) {
@@ -248,7 +288,10 @@ function renderSummary(emp) {
     const paid = db.payments.filter(p => p.employee === e.name).reduce((s, p) => s + (p.amount || 0), 0);
     return { name: e.name, lateDays, penalty, paid, pending: Math.max(0, penalty - paid), advance: Math.max(0, paid - penalty) };
   }).sort((a, b) => b.pending - a.pending);
-  tbody.innerHTML = rows.map(r => `
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  if (pageState.summary > totalPages) pageState.summary = totalPages;
+  const pageItems = paginate(rows, pageState.summary);
+  tbody.innerHTML = pageItems.map(r => `
     <tr>
       <td><strong>${escapeHtml(r.name)}</strong></td>
       <td>${r.lateDays}</td>
@@ -257,6 +300,7 @@ function renderSummary(emp) {
       <td class="${r.pending > 0 ? 'pill-red' : 'pill-green'}">₹${r.pending}</td>
       <td class="${r.advance > 0 ? 'pill-green' : ''}">${r.advance > 0 ? '₹' + r.advance : '-'}</td>
     </tr>`).join('');
+  renderPagination('summaryPg', rows.length, pageState.summary, 'goSummaryPage');
 }
 
 function renderLate(records, emp) {
@@ -274,7 +318,10 @@ function renderLate(records, emp) {
     return;
   }
   const sorted = [...r].sort((a, b) => b.date.localeCompare(a.date));
-  tbody.innerHTML = sorted.map(x => `
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  if (pageState.late > totalPages) pageState.late = totalPages;
+  const pageItems = paginate(sorted, pageState.late);
+  tbody.innerHTML = pageItems.map(x => `
     <tr>
       <td>${x.date}</td>
       <td><strong>${escapeHtml(x.employee)}</strong></td>
@@ -289,6 +336,7 @@ function renderLate(records, emp) {
       <td>${r.length} day${r.length !== 1 ? 's' : ''}</td>
       <td class="pill-red">₹${totalAmt}</td>
     </tr>`;
+  renderPagination('latePg', r.length, pageState.late, 'goLatePage');
 }
 
 function renderPayments(records, emp) {
@@ -304,7 +352,10 @@ function renderPayments(records, emp) {
     return;
   }
   const sorted = [...r].sort((a, b) => b.date.localeCompare(a.date));
-  tbody.innerHTML = sorted.map(p => `
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  if (pageState.pay > totalPages) pageState.pay = totalPages;
+  const pageItems = paginate(sorted, pageState.pay);
+  tbody.innerHTML = pageItems.map(p => `
     <tr>
       <td>${p.date}</td>
       <td><strong>${escapeHtml(p.employee)}</strong></td>
@@ -320,6 +371,7 @@ function renderPayments(records, emp) {
       <td class="pill-green">₹${totalPaid}</td>
       <td></td>
     </tr>`;
+  renderPagination('payPg', r.length, pageState.pay, 'goPayPage');
 }
 
 function resetDateFilter() {
