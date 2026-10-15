@@ -124,6 +124,15 @@
             <option value="other">Other</option>
           </select>
         </label>
+        <label>Status
+          <select id="fl_status" onchange="renderAll()">
+            <option value="">All</option>
+            <option value="paid">✓ Paid (cash)</option>
+            <option value="unpaid">Unpaid / Partial</option>
+            <option value="party_pending">🎉 Party Pending</option>
+            <option value="party_done">✓ Party Done</option>
+          </select>
+        </label>
         <button class="btn" onclick="renderAll()">Apply</button>
         <button class="btn" style="background:#6b7280;" onclick="resetDateFilter()">Reset</button>
       </div>
@@ -319,10 +328,24 @@ function renderLate(records, emp) {
   const from = document.getElementById('fl_from').value;
   const to = document.getElementById('fl_to').value;
   const type = (document.getElementById('fl_type') || {}).value || '';
+  const status = (document.getElementById('fl_status') || {}).value || '';
+  const paidMapAll = computePaidMap();
   let r = records;
   if (from) r = r.filter(x => x.date >= from);
   if (to) r = r.filter(x => x.date <= to);
   if (type) r = r.filter(x => (x.type || 'late') === type);
+  if (status) {
+    r = r.filter(x => {
+      const t = x.type || 'late';
+      const isParty = t === 'other' && x.otherMode === 'party';
+      const isCashPayable = t === 'late' || (t === 'other' && x.otherMode === 'cash');
+      if (status === 'paid') return isCashPayable && paidMapAll[x.id] === 'paid';
+      if (status === 'unpaid') return isCashPayable && paidMapAll[x.id] !== 'paid';
+      if (status === 'party_pending') return isParty && !x.completed;
+      if (status === 'party_done') return isParty && x.completed;
+      return true;
+    });
+  }
   const tbody = document.getElementById('lateBody');
   const tfoot = document.getElementById('lateFoot');
   document.getElementById('lateCount').textContent = r.length;
@@ -335,7 +358,7 @@ function renderLate(records, emp) {
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   if (pageState.late > totalPages) pageState.late = totalPages;
   const pageItems = paginate(sorted, pageState.late);
-  const paidMap = computePaidMap();
+  const paidMap = paidMapAll;
   tbody.innerHTML = pageItems.map(x => {
     const t = x.type || 'late';
     const badgeClass = t === 'late' ? 'badge-cash' : 'badge-party';

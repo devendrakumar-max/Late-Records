@@ -204,6 +204,15 @@
             <option value="other">Other</option>
           </select>
         </label>
+        <label style="display:flex;flex-direction:column;font-size:11px;color:#555;gap:4px;">Status
+          <select id="al_status" onchange="renderLate()" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;min-width:150px;">
+            <option value="">All</option>
+            <option value="paid">✓ Paid (cash)</option>
+            <option value="unpaid">Unpaid / Partial</option>
+            <option value="party_pending">🎉 Party Pending</option>
+            <option value="party_done">✓ Party Done</option>
+          </select>
+        </label>
       </div>
       <div class="table-wrap">
         <table>
@@ -598,9 +607,23 @@ function renderLate() {
   const tfoot = document.getElementById('lateFoot');
   const filterEmp = (document.getElementById('al_emp') || {}).value || '';
   const filterType = (document.getElementById('al_type') || {}).value || '';
+  const filterStatus = (document.getElementById('al_status') || {}).value || '';
+  const paidMapAll = computePaidMap();
   let filtered = db.lateRecords;
   if (filterEmp) filtered = filtered.filter(r => r.employee === filterEmp);
   if (filterType) filtered = filtered.filter(r => (r.type || 'late') === filterType);
+  if (filterStatus) {
+    filtered = filtered.filter(r => {
+      const t = r.type || 'late';
+      const isParty = t === 'other' && r.otherMode === 'party';
+      const isCashPayable = t === 'late' || (t === 'other' && r.otherMode === 'cash');
+      if (filterStatus === 'paid') return isCashPayable && paidMapAll[r.id] === 'paid';
+      if (filterStatus === 'unpaid') return isCashPayable && paidMapAll[r.id] !== 'paid';
+      if (filterStatus === 'party_pending') return isParty && !r.completed;
+      if (filterStatus === 'party_done') return isParty && r.completed;
+      return true;
+    });
+  }
   document.getElementById('lateCount').textContent = filtered.length;
   if (!filtered.length) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;padding:20px;">No penalty records.</td></tr>';
@@ -612,7 +635,7 @@ function renderLate() {
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   if (pageState.late > totalPages) pageState.late = totalPages;
   const pageItems = paginate(sorted, pageState.late);
-  const paidMap = computePaidMap();
+  const paidMap = paidMapAll;
   tbody.innerHTML = pageItems.map(r => {
     const type = r.type || 'late';
     const badgeClass = type === 'late' ? 'badge-cash' : 'badge-party';
