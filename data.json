@@ -81,6 +81,14 @@
   ],
   "payments": [
     {
+      "id": "1792045631529",
+      "employee": "Devendra Yadav",
+      "date": "2026-10-15",
+      "mode": "party",
+      "amount": 0,
+      "partyItems": "Burger"
+    },
+    {
       "id": "1792042623298",
       "employee": "Simran Saini",
       "date": "2026-10-15",
@@ -98,5 +106,5 @@
     }
   ],
   "penaltyPerDay": 120,
-  "lastUpdated": "2026-10-15T06:21:49.769Z"
+  "lastUpdated": "2026-10-15T06:27:12.196Z"
 }
