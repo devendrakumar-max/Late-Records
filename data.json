@@ -43,6 +43,14 @@
   ],
   "lateRecords": [
     {
+      "id": "1792049056590",
+      "employee": "Nadeem Qureshi",
+      "date": "2026-10-10",
+      "type": "appraisal",
+      "amount": 500,
+      "description": "First appraisal"
+    },
+    {
       "id": "1792046060327",
       "employee": "Baini Saini",
       "date": "2026-10-13",
@@ -116,5 +124,5 @@
     }
   ],
   "penaltyPerDay": 120,
-  "lastUpdated": "2026-10-15T06:34:36.994Z"
+  "lastUpdated": "2026-10-15T07:24:17.273Z"
 }
