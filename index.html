@@ -8,186 +8,331 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f9; color: #222; padding: 20px; }
   .container { max-width: 1200px; margin: 0 auto; }
-  .header { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; padding: 24px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
-  .header h1 { font-size: 22px; }
-  .header a { background: rgba(255,255,255,0.2); color: #fff; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; }
-  .header a:hover { background: rgba(255,255,255,0.3); }
-  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .header { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; padding: 20px 24px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+  .header h1 { font-size: 20px; }
+  .header a, .header button { background: rgba(255,255,255,0.2); color: #fff; padding: 8px 14px; border-radius: 6px; text-decoration: none; font-size: 13px; border: none; cursor: pointer; margin-left: 6px; }
+
+  .login-box { max-width: 400px; margin: 80px auto; background: #fff; padding: 32px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .login-box h2 { margin-bottom: 8px; color: #333; text-align: center; }
+  .login-box p { text-align: center; color: #666; font-size: 13px; margin-bottom: 16px; }
+  .login-box input { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 12px; font-size: 14px; }
+  .login-box button { width: 100%; padding: 12px; background: #667eea; color: #fff; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 600; }
+  .login-box .err { color: #dc2626; font-size: 13px; margin-top: 8px; text-align: center; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
   .stat-card { background: #fff; padding: 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
   .stat-card .label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
   .stat-card .value { font-size: 24px; font-weight: 700; color: #333; margin-top: 4px; }
-  .filters { background: #fff; padding: 16px; border-radius: 10px; margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
-  .filters label { display: flex; flex-direction: column; font-size: 12px; color: #555; gap: 4px; }
-  .filters input, .filters select { padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; min-width: 140px; }
-  .filters button { padding: 8px 16px; background: #667eea; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
-  .filters button:hover { background: #5568d3; }
-  .table-wrap { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; min-width: 900px; }
-  th { background: #f9fafb; text-align: left; padding: 12px; font-size: 12px; text-transform: uppercase; color: #555; border-bottom: 1px solid #e5e7eb; letter-spacing: 0.3px; }
-  td { padding: 12px; font-size: 13px; border-bottom: 1px solid #f3f4f6; }
+  .stat-card.red .value { color: #dc2626; }
+  .stat-card.green .value { color: #059669; }
+  .stat-card.orange .value { color: #ea580c; }
+
+  .tabs { display: flex; gap: 4px; background: #fff; padding: 6px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow-x: auto; }
+  .tab { padding: 10px 18px; border-radius: 6px; cursor: pointer; font-size: 13px; color: #555; white-space: nowrap; border: none; background: transparent; font-weight: 500; }
+  .tab.active { background: #667eea; color: #fff; }
+  .tab:hover:not(.active) { background: #f3f4f6; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .panel { background: #fff; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .panel h3 { margin-bottom: 16px; color: #333; font-size: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .btn { padding: 8px 16px; background: #10b981; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
+
+  .filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 14px; }
+  .filters label { display: flex; flex-direction: column; font-size: 11px; color: #555; gap: 4px; }
+  .filters input, .filters select { padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; min-width: 130px; }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #f9fafb; text-align: left; padding: 10px; font-size: 11px; text-transform: uppercase; color: #555; border-bottom: 1px solid #e5e7eb; }
+  td { padding: 10px; font-size: 13px; border-bottom: 1px solid #f3f4f6; }
   tr:hover td { background: #fafbfc; }
   .badge { padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
-  .badge-yes { background: #d1fae5; color: #065f46; }
-  .badge-no { background: #fee2e2; color: #991b1b; }
   .badge-cash { background: #dbeafe; color: #1e40af; }
   .badge-party { background: #fef3c7; color: #92400e; }
-  .empty { text-align: center; padding: 40px; color: #888; }
+  .pill-red { color: #dc2626; font-weight: 600; }
+  .pill-green { color: #059669; font-weight: 600; }
   .footer { text-align: center; color: #888; font-size: 12px; margin-top: 20px; }
-  @media (max-width: 600px) {
-    .header h1 { font-size: 18px; }
-    .stat-card .value { font-size: 20px; }
-  }
 </style>
 </head>
 <body>
-<div class="container">
+
+<div id="loginSection" class="login-box">
+  <h2>📋 Office Late Records</h2>
+  <p>Enter employee password to view records</p>
+  <input type="password" id="pwd" placeholder="Password" onkeypress="if(event.key==='Enter')login()">
+  <button onclick="login()">View Records</button>
+  <div class="err" id="loginErr"></div>
+</div>
+
+<div id="mainPanel" class="container" style="display:none;">
   <div class="header">
     <h1>📋 Office Late Records</h1>
-    <a href="admin.html">🔒 Admin Login</a>
+    <div>
+      <button onclick="exportCSV()">⬇ Export CSV</button>
+      <button onclick="logout()">Logout</button>
+    </div>
   </div>
 
-  <div class="stats" id="stats"></div>
+  <div class="stats-grid" id="overallStats"></div>
 
-  <div class="filters">
-    <label>Employee
-      <select id="filterEmployee"><option value="">All</option></select>
-    </label>
-    <label>From Date <input type="date" id="filterFrom"></label>
-    <label>To Date <input type="date" id="filterTo"></label>
-    <label>Penalty Paid
-      <select id="filterPaid">
-        <option value="">All</option>
-        <option value="yes">Yes</option>
-        <option value="no">No</option>
-      </select>
-    </label>
-    <button onclick="applyFilters()">Apply</button>
-    <button onclick="resetFilters()" style="background:#6b7280;">Reset</button>
-    <button onclick="exportCSV()" style="background:#10b981;">Export CSV</button>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('summary', this)">📊 Summary</button>
+    <button class="tab" onclick="showTab('late', this)">⏰ Late Records</button>
+    <button class="tab" onclick="showTab('payments', this)">💰 Payments</button>
   </div>
 
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Employee</th>
-          <th>Arrive Time</th>
-          <th>Reason</th>
-          <th>Penalty Paid</th>
-          <th>Mode</th>
-          <th>Penalty Date</th>
-          <th>Party Details</th>
-        </tr>
-      </thead>
-      <tbody id="tbody"></tbody>
-    </table>
+  <!-- SUMMARY -->
+  <div id="tab-summary" class="tab-content active">
+    <div class="panel">
+      <h3>📈 Per Employee Summary</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Employee</th><th>Late Days</th><th>Total Penalty (₹)</th><th>Paid (₹)</th><th>Pending (₹)</th></tr></thead>
+          <tbody id="summaryBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- LATE RECORDS -->
+  <div id="tab-late" class="tab-content">
+    <div class="panel">
+      <h3>⏰ All Late Records (<span id="lateCount">0</span>)</h3>
+      <div class="filters">
+        <label>Employee <select id="fl_emp"><option value="">All</option></select></label>
+        <label>From <input type="date" id="fl_from"></label>
+        <label>To <input type="date" id="fl_to"></label>
+        <button class="btn" onclick="applyLateFilters()">Apply</button>
+        <button class="btn" style="background:#6b7280;" onclick="resetLateFilters()">Reset</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Employee</th><th>Arrive</th><th>Penalty</th></tr></thead>
+          <tbody id="lateBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAYMENTS -->
+  <div id="tab-payments" class="tab-content">
+    <div class="panel">
+      <h3>💰 All Payments (<span id="payCount">0</span>)</h3>
+      <div class="filters">
+        <label>Employee <select id="fp_emp"><option value="">All</option></select></label>
+        <label>Mode
+          <select id="fp_mode">
+            <option value="">All</option>
+            <option value="cash">Cash</option>
+            <option value="party">Party</option>
+          </select>
+        </label>
+        <button class="btn" onclick="applyPayFilters()">Apply</button>
+        <button class="btn" style="background:#6b7280;" onclick="resetPayFilters()">Reset</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Employee</th><th>Mode</th><th>Amount</th><th>Party Items</th></tr></thead>
+          <tbody id="payBody"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <div class="footer">Last updated: <span id="lastUpdated">-</span></div>
 </div>
 
 <script>
-let allRecords = [];
+const EMP_PASSWORD = 'emp@123';
+let db = { employees: [], lateRecords: [], payments: [], penaltyPerDay: 120 };
+
+function login() {
+  if (document.getElementById('pwd').value === EMP_PASSWORD) {
+    sessionStorage.setItem('emp_auth', '1');
+    showPanel();
+  } else {
+    document.getElementById('loginErr').textContent = 'Wrong password!';
+  }
+}
+function logout() { sessionStorage.removeItem('emp_auth'); location.reload(); }
+
+function showPanel() {
+  document.getElementById('loginSection').style.display = 'none';
+  document.getElementById('mainPanel').style.display = 'block';
+  loadData();
+}
+
+function showTab(name, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
 
 async function loadData() {
   try {
     const res = await fetch('data.json?t=' + Date.now());
     const data = await res.json();
-    allRecords = data.records || [];
-    document.getElementById('lastUpdated').textContent = data.lastUpdated || 'N/A';
-    populateEmployeeFilter();
-    render(allRecords);
+    db.employees = data.employees || [];
+    db.lateRecords = data.lateRecords || [];
+    db.payments = data.payments || [];
+    db.penaltyPerDay = data.penaltyPerDay || 120;
+    document.getElementById('lastUpdated').textContent = data.lastUpdated ? new Date(data.lastUpdated).toLocaleString() : 'N/A';
+    populateEmpFilters();
+    renderAll();
   } catch (e) {
-    document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="empty">Error loading data.</td></tr>';
+    document.getElementById('summaryBody').innerHTML = '<tr><td colspan="5">Error loading data.</td></tr>';
   }
 }
 
-function populateEmployeeFilter() {
-  const sel = document.getElementById('filterEmployee');
-  const names = [...new Set(allRecords.map(r => r.employee))].sort();
-  names.forEach(n => {
-    const o = document.createElement('option');
-    o.value = n; o.textContent = n;
-    sel.appendChild(o);
-  });
+function populateEmpFilters() {
+  const opts = '<option value="">All</option>' +
+    db.employees.map(e => `<option value="${escapeHtml(e.name)}">${escapeHtml(e.name)}</option>`).join('');
+  document.getElementById('fl_emp').innerHTML = opts;
+  document.getElementById('fp_emp').innerHTML = opts;
 }
 
-function render(records) {
-  const tbody = document.getElementById('tbody');
-  if (!records.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="empty">No records found.</td></tr>';
-    renderStats([]);
+function renderAll() {
+  renderStats();
+  renderSummary();
+  renderLate(db.lateRecords);
+  renderPayments(db.payments);
+}
+
+function renderStats() {
+  const totalLate = db.lateRecords.length;
+  const totalPenalty = totalLate * db.penaltyPerDay;
+  const totalPaid = db.payments.reduce((s, p) => s + (p.amount || 0), 0);
+  const totalPending = Math.max(0, totalPenalty - totalPaid);
+  document.getElementById('overallStats').innerHTML = `
+    <div class="stat-card"><div class="label">Employees</div><div class="value">${db.employees.length}</div></div>
+    <div class="stat-card"><div class="label">Late Days</div><div class="value">${totalLate}</div></div>
+    <div class="stat-card red"><div class="label">Total Penalty</div><div class="value">₹${totalPenalty}</div></div>
+    <div class="stat-card green"><div class="label">Paid</div><div class="value">₹${totalPaid}</div></div>
+    <div class="stat-card orange"><div class="label">Pending</div><div class="value">₹${totalPending}</div></div>
+  `;
+}
+
+function renderSummary() {
+  const tbody = document.getElementById('summaryBody');
+  if (!db.employees.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;padding:20px;">No employees yet.</td></tr>';
     return;
   }
-  tbody.innerHTML = records.map(r => `
+  const rows = db.employees.map(emp => {
+    const lateDays = db.lateRecords.filter(r => r.employee === emp.name).length;
+    const penalty = lateDays * db.penaltyPerDay;
+    const paid = db.payments.filter(p => p.employee === emp.name).reduce((s, p) => s + (p.amount || 0), 0);
+    const pending = Math.max(0, penalty - paid);
+    return { name: emp.name, lateDays, penalty, paid, pending };
+  }).sort((a, b) => b.pending - a.pending);
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td><strong>${escapeHtml(r.name)}</strong></td>
+      <td>${r.lateDays}</td>
+      <td>₹${r.penalty}</td>
+      <td class="pill-green">₹${r.paid}</td>
+      <td class="${r.pending > 0 ? 'pill-red' : 'pill-green'}">₹${r.pending}</td>
+    </tr>`).join('');
+}
+
+function renderLate(records) {
+  const tbody = document.getElementById('lateBody');
+  document.getElementById('lateCount').textContent = records.length;
+  if (!records.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888;padding:20px;">No records.</td></tr>';
+    return;
+  }
+  const sorted = [...records].sort((a, b) => b.date.localeCompare(a.date));
+  tbody.innerHTML = sorted.map(r => `
     <tr>
       <td>${r.date}</td>
       <td><strong>${escapeHtml(r.employee)}</strong></td>
       <td>${r.arriveTime}</td>
-      <td>${escapeHtml(r.reason || '-')}</td>
-      <td>${r.penaltyPaid === 'yes' ? '<span class="badge badge-yes">Yes</span>' : '<span class="badge badge-no">No</span>'}</td>
-      <td>${r.penaltyMode ? `<span class="badge badge-${r.penaltyMode}">${r.penaltyMode}</span>` : '-'}</td>
-      <td>${r.penaltyDate || '-'}</td>
-      <td>${escapeHtml(r.partyDetails || '-')}</td>
-    </tr>
-  `).join('');
-  renderStats(records);
+      <td class="pill-red">₹${db.penaltyPerDay}</td>
+    </tr>`).join('');
 }
 
-function renderStats(records) {
-  const total = records.length;
-  const paid = records.filter(r => r.penaltyPaid === 'yes').length;
-  const unpaid = total - paid;
-  const uniqueEmployees = new Set(records.map(r => r.employee)).size;
-  const stats = [
-    { label: 'Total Late Entries', value: total },
-    { label: 'Unique Employees', value: uniqueEmployees },
-    { label: 'Penalty Paid', value: paid },
-    { label: 'Pending Penalty', value: unpaid }
-  ];
-  document.getElementById('stats').innerHTML = stats.map(s =>
-    `<div class="stat-card"><div class="label">${s.label}</div><div class="value">${s.value}</div></div>`
-  ).join('');
+function renderPayments(records) {
+  const tbody = document.getElementById('payBody');
+  document.getElementById('payCount').textContent = records.length;
+  if (!records.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;padding:20px;">No payments.</td></tr>';
+    return;
+  }
+  const sorted = [...records].sort((a, b) => b.date.localeCompare(a.date));
+  tbody.innerHTML = sorted.map(p => `
+    <tr>
+      <td>${p.date}</td>
+      <td><strong>${escapeHtml(p.employee)}</strong></td>
+      <td><span class="badge badge-${p.mode}">${p.mode}</span></td>
+      <td class="pill-green">₹${p.amount}</td>
+      <td>${p.partyItems ? escapeHtml(p.partyItems) : '-'}</td>
+    </tr>`).join('');
 }
 
-function applyFilters() {
-  const emp = document.getElementById('filterEmployee').value;
-  const from = document.getElementById('filterFrom').value;
-  const to = document.getElementById('filterTo').value;
-  const paid = document.getElementById('filterPaid').value;
-  let filtered = allRecords;
-  if (emp) filtered = filtered.filter(r => r.employee === emp);
-  if (from) filtered = filtered.filter(r => r.date >= from);
-  if (to) filtered = filtered.filter(r => r.date <= to);
-  if (paid) filtered = filtered.filter(r => r.penaltyPaid === paid);
-  render(filtered);
+function applyLateFilters() {
+  const emp = document.getElementById('fl_emp').value;
+  const from = document.getElementById('fl_from').value;
+  const to = document.getElementById('fl_to').value;
+  let r = db.lateRecords;
+  if (emp) r = r.filter(x => x.employee === emp);
+  if (from) r = r.filter(x => x.date >= from);
+  if (to) r = r.filter(x => x.date <= to);
+  renderLate(r);
+}
+function resetLateFilters() {
+  document.getElementById('fl_emp').value = '';
+  document.getElementById('fl_from').value = '';
+  document.getElementById('fl_to').value = '';
+  renderLate(db.lateRecords);
 }
 
-function resetFilters() {
-  document.getElementById('filterEmployee').value = '';
-  document.getElementById('filterFrom').value = '';
-  document.getElementById('filterTo').value = '';
-  document.getElementById('filterPaid').value = '';
-  render(allRecords);
+function applyPayFilters() {
+  const emp = document.getElementById('fp_emp').value;
+  const mode = document.getElementById('fp_mode').value;
+  let r = db.payments;
+  if (emp) r = r.filter(x => x.employee === emp);
+  if (mode) r = r.filter(x => x.mode === mode);
+  renderPayments(r);
+}
+function resetPayFilters() {
+  document.getElementById('fp_emp').value = '';
+  document.getElementById('fp_mode').value = '';
+  renderPayments(db.payments);
 }
 
 function exportCSV() {
-  const headers = ['Date', 'Employee', 'Arrive Time', 'Reason', 'Penalty Paid', 'Mode', 'Penalty Date', 'Party Details'];
-  const rows = allRecords.map(r => [r.date, r.employee, r.arriveTime, r.reason, r.penaltyPaid, r.penaltyMode || '', r.penaltyDate || '', r.partyDetails || '']);
-  const csv = [headers, ...rows].map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const sections = [];
+  sections.push('--- SUMMARY ---');
+  sections.push(['Employee', 'Late Days', 'Penalty', 'Paid', 'Pending'].join(','));
+  db.employees.forEach(emp => {
+    const lateDays = db.lateRecords.filter(r => r.employee === emp.name).length;
+    const penalty = lateDays * db.penaltyPerDay;
+    const paid = db.payments.filter(p => p.employee === emp.name).reduce((s, p) => s + (p.amount || 0), 0);
+    const pending = Math.max(0, penalty - paid);
+    sections.push([emp.name, lateDays, penalty, paid, pending].map(csvCell).join(','));
+  });
+  sections.push('');
+  sections.push('--- LATE RECORDS ---');
+  sections.push(['Date', 'Employee', 'Arrive Time', 'Penalty'].join(','));
+  db.lateRecords.forEach(r => sections.push([r.date, r.employee, r.arriveTime, db.penaltyPerDay].map(csvCell).join(',')));
+  sections.push('');
+  sections.push('--- PAYMENTS ---');
+  sections.push(['Date', 'Employee', 'Mode', 'Amount', 'Party Items'].join(','));
+  db.payments.forEach(p => sections.push([p.date, p.employee, p.mode, p.amount, p.partyItems || ''].map(csvCell).join(',')));
+  const csv = sections.join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = 'late_records.csv'; a.click();
   URL.revokeObjectURL(url);
 }
+function csvCell(v) { return `"${String(v).replace(/"/g, '""')}"`; }
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-
-loadData();
+if (sessionStorage.getItem('emp_auth') === '1') showPanel();
 </script>
 </body>
 </html>
