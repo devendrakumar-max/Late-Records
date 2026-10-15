@@ -74,6 +74,14 @@
     </div>
   </div>
 
+  <div class="panel" style="padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    <label style="font-size:12px;color:#555;font-weight:600;">👤 Filter by Employee:</label>
+    <select id="globalEmpFilter" onchange="renderAll()" style="padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;min-width:200px;">
+      <option value="">All Employees</option>
+    </select>
+    <span id="filterNote" style="font-size:12px;color:#667eea;font-weight:500;"></span>
+  </div>
+
   <div class="stats-grid" id="overallStats"></div>
 
   <div class="tabs">
@@ -88,7 +96,7 @@
       <h3>📈 Per Employee Summary</h3>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Employee</th><th>Late Days</th><th>Total Penalty (₹)</th><th>Paid (₹)</th><th>Pending (₹)</th></tr></thead>
+          <thead><tr><th>Employee</th><th>Late Days</th><th>Total Penalty (₹)</th><th>Paid (₹)</th><th>Pending (₹)</th><th>Advance (₹)</th></tr></thead>
           <tbody id="summaryBody"></tbody>
         </table>
       </div>
@@ -98,18 +106,18 @@
   <!-- LATE RECORDS -->
   <div id="tab-late" class="tab-content">
     <div class="panel">
-      <h3>⏰ All Late Records (<span id="lateCount">0</span>)</h3>
+      <h3><span>⏰ All Late Records (<span id="lateCount">0</span>)</span></h3>
       <div class="filters">
-        <label>Employee <select id="fl_emp"><option value="">All</option></select></label>
         <label>From <input type="date" id="fl_from"></label>
         <label>To <input type="date" id="fl_to"></label>
-        <button class="btn" onclick="applyLateFilters()">Apply</button>
-        <button class="btn" style="background:#6b7280;" onclick="resetLateFilters()">Reset</button>
+        <button class="btn" onclick="renderAll()">Apply</button>
+        <button class="btn" style="background:#6b7280;" onclick="resetDateFilter()">Reset</button>
       </div>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Date</th><th>Employee</th><th>Arrive</th><th>Penalty</th></tr></thead>
           <tbody id="lateBody"></tbody>
+          <tfoot id="lateFoot"></tfoot>
         </table>
       </div>
     </div>
@@ -118,23 +126,21 @@
   <!-- PAYMENTS -->
   <div id="tab-payments" class="tab-content">
     <div class="panel">
-      <h3>💰 All Payments (<span id="payCount">0</span>)</h3>
+      <h3><span>💰 All Payments (<span id="payCount">0</span>)</span></h3>
       <div class="filters">
-        <label>Employee <select id="fp_emp"><option value="">All</option></select></label>
         <label>Mode
-          <select id="fp_mode">
+          <select id="fp_mode" onchange="renderAll()">
             <option value="">All</option>
             <option value="cash">Cash</option>
             <option value="party">Party</option>
           </select>
         </label>
-        <button class="btn" onclick="applyPayFilters()">Apply</button>
-        <button class="btn" style="background:#6b7280;" onclick="resetPayFilters()">Reset</button>
       </div>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Date</th><th>Employee</th><th>Mode</th><th>Amount</th><th>Party Items</th></tr></thead>
           <tbody id="payBody"></tbody>
+          <tfoot id="payFoot"></tfoot>
         </table>
       </div>
     </div>
@@ -187,45 +193,60 @@ async function loadData() {
 }
 
 function populateEmpFilters() {
-  const opts = '<option value="">All</option>' +
+  const opts = '<option value="">All Employees</option>' +
     db.employees.map(e => `<option value="${escapeHtml(e.name)}">${escapeHtml(e.name)}</option>`).join('');
-  document.getElementById('fl_emp').innerHTML = opts;
-  document.getElementById('fp_emp').innerHTML = opts;
+  const g = document.getElementById('globalEmpFilter');
+  const prev = g.value;
+  g.innerHTML = opts;
+  g.value = prev;
+}
+
+function getGlobalFilter() {
+  return (document.getElementById('globalEmpFilter') || {}).value || '';
 }
 
 function renderAll() {
-  renderStats();
-  renderSummary();
-  renderLate(db.lateRecords);
-  renderPayments(db.payments);
+  const emp = getGlobalFilter();
+  const note = document.getElementById('filterNote');
+  note.textContent = emp ? '→ Showing: ' + emp : '→ Showing all employees';
+  const lateFiltered = emp ? db.lateRecords.filter(r => r.employee === emp) : db.lateRecords;
+  const payFiltered = emp ? db.payments.filter(p => p.employee === emp) : db.payments;
+  renderStats(emp, lateFiltered, payFiltered);
+  renderSummary(emp);
+  renderLate(lateFiltered, emp);
+  renderPayments(payFiltered, emp);
 }
 
-function renderStats() {
-  const totalLate = db.lateRecords.length;
+function renderStats(emp, lateFiltered, payFiltered) {
+  const totalLate = lateFiltered.length;
   const totalPenalty = totalLate * db.penaltyPerDay;
-  const totalPaid = db.payments.reduce((s, p) => s + (p.amount || 0), 0);
+  const totalPaid = payFiltered.reduce((s, p) => s + (p.amount || 0), 0);
   const totalPending = Math.max(0, totalPenalty - totalPaid);
+  const totalAdvance = Math.max(0, totalPaid - totalPenalty);
+  const empLabel = emp ? 1 : db.employees.length;
+  const empCardLabel = emp ? 'Employee' : 'Employees';
   document.getElementById('overallStats').innerHTML = `
-    <div class="stat-card"><div class="label">Employees</div><div class="value">${db.employees.length}</div></div>
+    <div class="stat-card"><div class="label">${empCardLabel}</div><div class="value">${empLabel}</div></div>
     <div class="stat-card"><div class="label">Late Days</div><div class="value">${totalLate}</div></div>
     <div class="stat-card red"><div class="label">Total Penalty</div><div class="value">₹${totalPenalty}</div></div>
     <div class="stat-card green"><div class="label">Paid</div><div class="value">₹${totalPaid}</div></div>
     <div class="stat-card orange"><div class="label">Pending</div><div class="value">₹${totalPending}</div></div>
+    <div class="stat-card green"><div class="label">Advance</div><div class="value">₹${totalAdvance}</div></div>
   `;
 }
 
-function renderSummary() {
+function renderSummary(emp) {
   const tbody = document.getElementById('summaryBody');
-  if (!db.employees.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;padding:20px;">No employees yet.</td></tr>';
+  const empList = emp ? db.employees.filter(e => e.name === emp) : db.employees;
+  if (!empList.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;padding:20px;">No employees.</td></tr>';
     return;
   }
-  const rows = db.employees.map(emp => {
-    const lateDays = db.lateRecords.filter(r => r.employee === emp.name).length;
+  const rows = empList.map(e => {
+    const lateDays = db.lateRecords.filter(r => r.employee === e.name).length;
     const penalty = lateDays * db.penaltyPerDay;
-    const paid = db.payments.filter(p => p.employee === emp.name).reduce((s, p) => s + (p.amount || 0), 0);
-    const pending = Math.max(0, penalty - paid);
-    return { name: emp.name, lateDays, penalty, paid, pending };
+    const paid = db.payments.filter(p => p.employee === e.name).reduce((s, p) => s + (p.amount || 0), 0);
+    return { name: e.name, lateDays, penalty, paid, pending: Math.max(0, penalty - paid), advance: Math.max(0, paid - penalty) };
   }).sort((a, b) => b.pending - a.pending);
   tbody.innerHTML = rows.map(r => `
     <tr>
@@ -234,34 +255,55 @@ function renderSummary() {
       <td>₹${r.penalty}</td>
       <td class="pill-green">₹${r.paid}</td>
       <td class="${r.pending > 0 ? 'pill-red' : 'pill-green'}">₹${r.pending}</td>
+      <td class="${r.advance > 0 ? 'pill-green' : ''}">${r.advance > 0 ? '₹' + r.advance : '-'}</td>
     </tr>`).join('');
 }
 
-function renderLate(records) {
+function renderLate(records, emp) {
+  const from = document.getElementById('fl_from').value;
+  const to = document.getElementById('fl_to').value;
+  let r = records;
+  if (from) r = r.filter(x => x.date >= from);
+  if (to) r = r.filter(x => x.date <= to);
   const tbody = document.getElementById('lateBody');
-  document.getElementById('lateCount').textContent = records.length;
-  if (!records.length) {
+  const tfoot = document.getElementById('lateFoot');
+  document.getElementById('lateCount').textContent = r.length;
+  if (!r.length) {
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888;padding:20px;">No records.</td></tr>';
+    tfoot.innerHTML = '';
     return;
   }
-  const sorted = [...records].sort((a, b) => b.date.localeCompare(a.date));
-  tbody.innerHTML = sorted.map(r => `
+  const sorted = [...r].sort((a, b) => b.date.localeCompare(a.date));
+  tbody.innerHTML = sorted.map(x => `
     <tr>
-      <td>${r.date}</td>
-      <td><strong>${escapeHtml(r.employee)}</strong></td>
-      <td>${r.arriveTime}</td>
+      <td>${x.date}</td>
+      <td><strong>${escapeHtml(x.employee)}</strong></td>
+      <td>${x.arriveTime}</td>
       <td class="pill-red">₹${db.penaltyPerDay}</td>
     </tr>`).join('');
+  const totalAmt = r.length * db.penaltyPerDay;
+  const label = emp ? `Total for ${escapeHtml(emp)}` : 'Overall Total';
+  tfoot.innerHTML = `
+    <tr style="background:#f9fafb;font-weight:700;">
+      <td colspan="2">${label}</td>
+      <td>${r.length} day${r.length !== 1 ? 's' : ''}</td>
+      <td class="pill-red">₹${totalAmt}</td>
+    </tr>`;
 }
 
-function renderPayments(records) {
+function renderPayments(records, emp) {
+  const mode = document.getElementById('fp_mode').value;
+  let r = records;
+  if (mode) r = r.filter(x => x.mode === mode);
   const tbody = document.getElementById('payBody');
-  document.getElementById('payCount').textContent = records.length;
-  if (!records.length) {
+  const tfoot = document.getElementById('payFoot');
+  document.getElementById('payCount').textContent = r.length;
+  if (!r.length) {
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;padding:20px;">No payments.</td></tr>';
+    tfoot.innerHTML = '';
     return;
   }
-  const sorted = [...records].sort((a, b) => b.date.localeCompare(a.date));
+  const sorted = [...r].sort((a, b) => b.date.localeCompare(a.date));
   tbody.innerHTML = sorted.map(p => `
     <tr>
       <td>${p.date}</td>
@@ -270,37 +312,20 @@ function renderPayments(records) {
       <td class="pill-green">₹${p.amount}</td>
       <td>${p.partyItems ? escapeHtml(p.partyItems) : '-'}</td>
     </tr>`).join('');
+  const totalPaid = r.reduce((s, p) => s + (p.amount || 0), 0);
+  const label = emp ? `Total paid by ${escapeHtml(emp)}` : 'Overall Paid';
+  tfoot.innerHTML = `
+    <tr style="background:#f9fafb;font-weight:700;">
+      <td colspan="3">${label}</td>
+      <td class="pill-green">₹${totalPaid}</td>
+      <td></td>
+    </tr>`;
 }
 
-function applyLateFilters() {
-  const emp = document.getElementById('fl_emp').value;
-  const from = document.getElementById('fl_from').value;
-  const to = document.getElementById('fl_to').value;
-  let r = db.lateRecords;
-  if (emp) r = r.filter(x => x.employee === emp);
-  if (from) r = r.filter(x => x.date >= from);
-  if (to) r = r.filter(x => x.date <= to);
-  renderLate(r);
-}
-function resetLateFilters() {
-  document.getElementById('fl_emp').value = '';
+function resetDateFilter() {
   document.getElementById('fl_from').value = '';
   document.getElementById('fl_to').value = '';
-  renderLate(db.lateRecords);
-}
-
-function applyPayFilters() {
-  const emp = document.getElementById('fp_emp').value;
-  const mode = document.getElementById('fp_mode').value;
-  let r = db.payments;
-  if (emp) r = r.filter(x => x.employee === emp);
-  if (mode) r = r.filter(x => x.mode === mode);
-  renderPayments(r);
-}
-function resetPayFilters() {
-  document.getElementById('fp_emp').value = '';
-  document.getElementById('fp_mode').value = '';
-  renderPayments(db.payments);
+  renderAll();
 }
 
 function exportCSV() {

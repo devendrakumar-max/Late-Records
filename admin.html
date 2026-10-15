@@ -109,6 +109,7 @@
               <th>Total Penalty (₹)</th>
               <th>Paid (₹)</th>
               <th>Pending (₹)</th>
+              <th>Advance (₹)</th>
             </tr>
           </thead>
           <tbody id="summaryBody"></tbody>
@@ -159,10 +160,18 @@
     </div>
     <div class="panel">
       <h3>⏰ All Late Records (<span id="lateCount">0</span>)</h3>
+      <div class="filters" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
+        <label style="display:flex;flex-direction:column;font-size:11px;color:#555;gap:4px;">Employee
+          <select id="al_emp" onchange="renderLate()" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;min-width:160px;">
+            <option value="">All</option>
+          </select>
+        </label>
+      </div>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Date</th><th>Employee</th><th>Arrive</th><th>Penalty</th><th>Action</th></tr></thead>
           <tbody id="lateBody"></tbody>
+          <tfoot id="lateFoot"></tfoot>
         </table>
       </div>
     </div>
@@ -308,6 +317,14 @@ function renderEmployeeDropdowns() {
     db.employees.map(e => `<option value="${escapeHtml(e.name)}">${escapeHtml(e.name)}</option>`).join('');
   document.getElementById('l_employee').innerHTML = opts;
   document.getElementById('p_employee').innerHTML = opts;
+  const filterOpts = '<option value="">All</option>' +
+    db.employees.map(e => `<option value="${escapeHtml(e.name)}">${escapeHtml(e.name)}</option>`).join('');
+  const alEmp = document.getElementById('al_emp');
+  if (alEmp) {
+    const prev = alEmp.value;
+    alEmp.innerHTML = filterOpts;
+    alEmp.value = prev;
+  }
 }
 
 // ---------- EMPLOYEES ----------
@@ -400,12 +417,16 @@ function resetLateForm() {
 
 function renderLate() {
   const tbody = document.getElementById('lateBody');
-  document.getElementById('lateCount').textContent = db.lateRecords.length;
-  if (!db.lateRecords.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;padding:20px;">No late records yet.</td></tr>';
+  const tfoot = document.getElementById('lateFoot');
+  const filterEmp = (document.getElementById('al_emp') || {}).value || '';
+  const filtered = filterEmp ? db.lateRecords.filter(r => r.employee === filterEmp) : db.lateRecords;
+  document.getElementById('lateCount').textContent = filtered.length;
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;padding:20px;">No late records.</td></tr>';
+    if (tfoot) tfoot.innerHTML = '';
     return;
   }
-  const sorted = [...db.lateRecords].sort((a, b) => b.date.localeCompare(a.date));
+  const sorted = [...filtered].sort((a, b) => b.date.localeCompare(a.date));
   tbody.innerHTML = sorted.map(r => `
     <tr>
       <td>${r.date}</td>
@@ -417,6 +438,16 @@ function renderLate() {
         <button class="btn btn-small btn-delete" onclick="deleteLate('${r.id}')">Del</button>
       </td>
     </tr>`).join('');
+  const totalDays = filtered.length;
+  const totalAmt = totalDays * db.penaltyPerDay;
+  const label = filterEmp ? `Total for ${escapeHtml(filterEmp)}` : 'Overall Total';
+  if (tfoot) tfoot.innerHTML = `
+    <tr style="background:#f9fafb;font-weight:700;">
+      <td colspan="2">${label}</td>
+      <td>${totalDays} day${totalDays !== 1 ? 's' : ''}</td>
+      <td class="pill-red">₹${totalAmt}</td>
+      <td></td>
+    </tr>`;
 }
 
 // ---------- PAYMENTS ----------
@@ -507,26 +538,28 @@ function renderDashboard() {
   const totalLate = db.lateRecords.length;
   const totalPenalty = totalLate * db.penaltyPerDay;
   const totalPaid = db.payments.reduce((s, p) => s + (p.amount || 0), 0);
-  const totalPending = Math.max(0, totalPenalty - totalPaid);
+  const rowsAll = db.employees.map(emp => {
+    const lateDays = db.lateRecords.filter(r => r.employee === emp.name).length;
+    const penalty = lateDays * db.penaltyPerDay;
+    const paid = db.payments.filter(p => p.employee === emp.name).reduce((s, p) => s + (p.amount || 0), 0);
+    return { name: emp.name, lateDays, penalty, paid, pending: Math.max(0, penalty - paid), advance: Math.max(0, paid - penalty) };
+  });
+  const totalPending = rowsAll.reduce((s, r) => s + r.pending, 0);
+  const totalAdvance = rowsAll.reduce((s, r) => s + r.advance, 0);
   document.getElementById('overallStats').innerHTML = `
     <div class="stat-card"><div class="label">Total Employees</div><div class="value">${db.employees.length}</div></div>
     <div class="stat-card"><div class="label">Total Late Days</div><div class="value">${totalLate}</div></div>
     <div class="stat-card red"><div class="label">Total Penalty</div><div class="value">₹${totalPenalty}</div></div>
     <div class="stat-card green"><div class="label">Total Paid</div><div class="value">₹${totalPaid}</div></div>
     <div class="stat-card orange"><div class="label">Total Pending</div><div class="value">₹${totalPending}</div></div>
+    <div class="stat-card green"><div class="label">Total Advance</div><div class="value">₹${totalAdvance}</div></div>
   `;
   const tbody = document.getElementById('summaryBody');
   if (!db.employees.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;padding:20px;">No employees yet.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;padding:20px;">No employees yet.</td></tr>';
     return;
   }
-  const rows = db.employees.map(emp => {
-    const lateDays = db.lateRecords.filter(r => r.employee === emp.name).length;
-    const penalty = lateDays * db.penaltyPerDay;
-    const paid = db.payments.filter(p => p.employee === emp.name).reduce((s, p) => s + (p.amount || 0), 0);
-    const pending = Math.max(0, penalty - paid);
-    return { name: emp.name, lateDays, penalty, paid, pending };
-  }).sort((a, b) => b.pending - a.pending);
+  const rows = rowsAll.sort((a, b) => b.pending - a.pending);
   tbody.innerHTML = rows.map(r => `
     <tr>
       <td><strong>${escapeHtml(r.name)}</strong></td>
@@ -534,6 +567,7 @@ function renderDashboard() {
       <td>₹${r.penalty}</td>
       <td class="pill-green">₹${r.paid}</td>
       <td class="${r.pending > 0 ? 'pill-red' : 'pill-green'}">₹${r.pending}</td>
+      <td class="${r.advance > 0 ? 'pill-green' : ''}">${r.advance > 0 ? '₹' + r.advance : '-'}</td>
     </tr>`).join('');
 }
 
