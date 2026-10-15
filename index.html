@@ -349,11 +349,16 @@ function renderLate(records, emp) {
       details = parts.join(' — ') || '-';
     }
     const amtDisplay = (x.amount && x.amount > 0) ? ('₹' + x.amount) : '—';
+    const isParty = t === 'other' && x.otherMode === 'party';
+    const rowStyle = (isParty && x.completed) ? 'opacity:0.55;text-decoration:line-through;' : '';
+    const statusBadge = isParty
+      ? (x.completed ? ' <span class="badge badge-cash">✓ done</span>' : ' <span class="badge badge-party">pending</span>')
+      : '';
     return `
-    <tr>
+    <tr style="${rowStyle}">
       <td>${x.date}</td>
       <td><strong>${escapeHtml(x.employee)}</strong></td>
-      <td><span class="badge ${badgeClass}">${typeLabel}</span></td>
+      <td><span class="badge ${badgeClass}">${typeLabel}</span>${statusBadge}</td>
       <td>${details}</td>
       <td class="pill-red">${amtDisplay}</td>
     </tr>`;
@@ -363,13 +368,31 @@ function renderLate(records, emp) {
   if (emp) labelParts.push(escapeHtml(emp));
   if (type) labelParts.push(type);
   const label = labelParts.length ? `Total for ${labelParts.join(' / ')}` : 'Overall Total';
+  const pendingParties = r.filter(x => x.type === 'other' && x.otherMode === 'party' && !x.completed);
+  const doneParties = r.filter(x => x.type === 'other' && x.otherMode === 'party' && x.completed);
+  const pendingSummary = summarizePartyItems(pendingParties);
+  const doneSummary = summarizePartyItems(doneParties);
+  let partyRows = '';
+  if (pendingSummary) partyRows += `<tr style="background:#fef3c7;"><td colspan="2" style="font-weight:600;">🎉 Pending Parties</td><td colspan="3">${escapeHtml(pendingSummary)}</td></tr>`;
+  if (doneSummary) partyRows += `<tr style="background:#d1fae5;"><td colspan="2" style="font-weight:600;">✓ Done Parties</td><td colspan="3">${escapeHtml(doneSummary)}</td></tr>`;
   tfoot.innerHTML = `
     <tr style="background:#f9fafb;font-weight:700;">
       <td colspan="3">${label}</td>
       <td>${r.length} record${r.length !== 1 ? 's' : ''}</td>
       <td class="pill-red">₹${totalAmt}</td>
-    </tr>`;
+    </tr>${partyRows}`;
   renderPagination('latePg', r.length, pageState.late, 'goLatePage');
+}
+
+function summarizePartyItems(records) {
+  const counts = {};
+  records.forEach(r => {
+    if (r.type === 'other' && r.otherMode === 'party' && r.item) {
+      const key = r.item.trim();
+      counts[key] = (counts[key] || 0) + 1;
+    }
+  });
+  return Object.keys(counts).sort().map(k => `${counts[k]} ${k}`).join(', ');
 }
 
 function renderPayments(records, emp) {

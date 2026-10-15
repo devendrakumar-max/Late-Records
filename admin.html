@@ -534,6 +534,27 @@ async function deleteLate(id) {
   await autoCommit('Penalty deleted');
 }
 
+async function togglePartyDone(id) {
+  const r = db.lateRecords.find(x => x.id === id);
+  if (!r) return;
+  r.completed = !r.completed;
+  if (r.completed) r.completedOn = todayStr();
+  else delete r.completedOn;
+  renderAll();
+  await autoCommit('Party ' + (r.completed ? 'marked done' : 'reopened') + ': ' + (r.item || ''));
+}
+
+function summarizePartyItems(records) {
+  const counts = {};
+  records.forEach(r => {
+    if (r.type === 'other' && r.otherMode === 'party' && r.item) {
+      const key = r.item.trim();
+      counts[key] = (counts[key] || 0) + 1;
+    }
+  });
+  return Object.keys(counts).sort().map(k => `${counts[k]} ${k}`).join(', ');
+}
+
 function resetLateForm() {
   document.getElementById('l_editId').value = '';
   document.getElementById('l_type').value = 'late';
@@ -581,14 +602,25 @@ function renderLate() {
       details = parts.join(' — ') || '-';
     }
     const amtDisplay = (r.amount && r.amount > 0) ? ('₹' + r.amount) : '—';
+    const isParty = type === 'other' && r.otherMode === 'party';
+    const doneBtn = isParty
+      ? (r.completed
+          ? `<button class="btn btn-small btn-secondary" onclick="togglePartyDone('${r.id}')" title="Mark pending">↶ Pending</button>`
+          : `<button class="btn btn-small btn-save" onclick="togglePartyDone('${r.id}')" title="Mark done">✓ Done</button>`)
+      : '';
+    const rowStyle = (isParty && r.completed) ? 'opacity:0.55;text-decoration:line-through;' : '';
+    const statusBadge = isParty
+      ? (r.completed ? ' <span class="badge badge-cash">✓ done</span>' : ' <span class="badge badge-party">pending</span>')
+      : '';
     return `
-    <tr>
+    <tr style="${rowStyle}">
       <td>${r.date}</td>
       <td><strong>${escapeHtml(r.employee)}</strong></td>
-      <td><span class="badge ${badgeClass}">${typeLabel}</span></td>
+      <td><span class="badge ${badgeClass}">${typeLabel}</span>${statusBadge}</td>
       <td>${details}</td>
       <td class="pill-red">${amtDisplay}</td>
       <td>
+        ${doneBtn}
         <button class="btn btn-small btn-edit" onclick="editLate('${r.id}')">Edit</button>
         <button class="btn btn-small btn-delete" onclick="deleteLate('${r.id}')">Del</button>
       </td>
@@ -600,13 +632,20 @@ function renderLate() {
   if (filterEmp) labelParts.push(escapeHtml(filterEmp));
   if (filterType) labelParts.push(filterType);
   const label = labelParts.length ? `Total for ${labelParts.join(' / ')}` : 'Overall Total';
+  const pendingParties = filtered.filter(r => r.type === 'other' && r.otherMode === 'party' && !r.completed);
+  const doneParties = filtered.filter(r => r.type === 'other' && r.otherMode === 'party' && r.completed);
+  const pendingSummary = summarizePartyItems(pendingParties);
+  const doneSummary = summarizePartyItems(doneParties);
+  let partyRows = '';
+  if (pendingSummary) partyRows += `<tr style="background:#fef3c7;"><td colspan="2" style="font-weight:600;">🎉 Pending Parties</td><td colspan="4">${escapeHtml(pendingSummary)}</td></tr>`;
+  if (doneSummary) partyRows += `<tr style="background:#d1fae5;"><td colspan="2" style="font-weight:600;">✓ Done Parties</td><td colspan="4">${escapeHtml(doneSummary)}</td></tr>`;
   if (tfoot) tfoot.innerHTML = `
     <tr style="background:#f9fafb;font-weight:700;">
       <td colspan="3">${label}</td>
       <td>${totalCount} record${totalCount !== 1 ? 's' : ''}</td>
       <td class="pill-red">₹${totalAmt}</td>
       <td></td>
-    </tr>`;
+    </tr>${partyRows}`;
   renderPagination('latePg', filtered.length, pageState.late, 'goLatePage');
 }
 
