@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Office Late Records</title>
+<title>Hisab Kitab</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f9; color: #222; padding: 20px; }
@@ -64,7 +64,7 @@
 <body>
 
 <div id="loginSection" class="login-box">
-  <h2>📋 Office Late Records</h2>
+  <h2>📒 Hisab Kitab</h2>
   <p>Enter employee password to view records</p>
   <input type="password" id="pwd" placeholder="Password" onkeypress="if(event.key==='Enter')login()">
   <button onclick="login()">View Records</button>
@@ -73,7 +73,7 @@
 
 <div id="mainPanel" class="container" style="display:none;">
   <div class="header">
-    <h1>📋 Office Late Records</h1>
+    <h1>📒 Hisab Kitab</h1>
     <div>
       <button onclick="exportCSV()">⬇ Export CSV</button>
       <button onclick="logout()">Logout</button>
@@ -92,7 +92,7 @@
 
   <div class="tabs">
     <button class="tab active" onclick="showTab('summary', this)">📊 Summary</button>
-    <button class="tab" onclick="showTab('late', this)">⏰ Late Records</button>
+    <button class="tab" onclick="showTab('late', this)">⚖️ Penalties</button>
     <button class="tab" onclick="showTab('payments', this)">💰 Payments</button>
   </div>
 
@@ -113,16 +113,23 @@
   <!-- LATE RECORDS -->
   <div id="tab-late" class="tab-content">
     <div class="panel">
-      <h3><span>⏰ All Late Records (<span id="lateCount">0</span>)</span></h3>
+      <h3><span>⚖️ All Penalties (<span id="lateCount">0</span>)</span></h3>
       <div class="filters">
         <label>From <input type="date" id="fl_from"></label>
         <label>To <input type="date" id="fl_to"></label>
+        <label>Type
+          <select id="fl_type" onchange="renderAll()">
+            <option value="">All</option>
+            <option value="late">Late</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
         <button class="btn" onclick="renderAll()">Apply</button>
         <button class="btn" style="background:#6b7280;" onclick="resetDateFilter()">Reset</button>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Date</th><th>Employee</th><th>Arrive</th><th>Penalty</th></tr></thead>
+          <thead><tr><th>Date</th><th>Employee</th><th>Type</th><th>Details</th><th>Amount</th></tr></thead>
           <tbody id="lateBody"></tbody>
           <tfoot id="lateFoot"></tfoot>
         </table>
@@ -224,6 +231,10 @@ async function loadData() {
     db.lateRecords = data.lateRecords || [];
     db.payments = data.payments || [];
     db.penaltyPerDay = data.penaltyPerDay || 120;
+    db.lateRecords = db.lateRecords.map(r => {
+      if (!r.type) return { ...r, type: 'late', amount: db.penaltyPerDay };
+      return r;
+    });
     document.getElementById('lastUpdated').textContent = data.lastUpdated ? new Date(data.lastUpdated).toLocaleString() : 'N/A';
     populateEmpFilters();
     renderAll();
@@ -258,8 +269,8 @@ function renderAll() {
 }
 
 function renderStats(emp, lateFiltered, payFiltered) {
-  const totalLate = lateFiltered.length;
-  const totalPenalty = totalLate * db.penaltyPerDay;
+  const totalRecords = lateFiltered.length;
+  const totalPenalty = lateFiltered.reduce((s, r) => s + (r.amount || 0), 0);
   const totalPaid = payFiltered.reduce((s, p) => s + (p.amount || 0), 0);
   const totalPending = Math.max(0, totalPenalty - totalPaid);
   const totalAdvance = Math.max(0, totalPaid - totalPenalty);
@@ -267,7 +278,7 @@ function renderStats(emp, lateFiltered, payFiltered) {
   const empCardLabel = emp ? 'Employee' : 'Employees';
   document.getElementById('overallStats').innerHTML = `
     <div class="stat-card"><div class="label">${empCardLabel}</div><div class="value">${empLabel}</div></div>
-    <div class="stat-card"><div class="label">Late Days</div><div class="value">${totalLate}</div></div>
+    <div class="stat-card"><div class="label">Total Penalties</div><div class="value">${totalRecords}</div></div>
     <div class="stat-card red"><div class="label">Total Penalty</div><div class="value">₹${totalPenalty}</div></div>
     <div class="stat-card green"><div class="label">Paid</div><div class="value">₹${totalPaid}</div></div>
     <div class="stat-card orange"><div class="label">Pending</div><div class="value">₹${totalPending}</div></div>
@@ -283,8 +294,9 @@ function renderSummary(emp) {
     return;
   }
   const rows = empList.map(e => {
-    const lateDays = db.lateRecords.filter(r => r.employee === e.name).length;
-    const penalty = lateDays * db.penaltyPerDay;
+    const empRecs = db.lateRecords.filter(r => r.employee === e.name);
+    const lateDays = empRecs.filter(r => (r.type || 'late') === 'late').length;
+    const penalty = empRecs.reduce((s, r) => s + (r.amount || 0), 0);
     const paid = db.payments.filter(p => p.employee === e.name).reduce((s, p) => s + (p.amount || 0), 0);
     return { name: e.name, lateDays, penalty, paid, pending: Math.max(0, penalty - paid), advance: Math.max(0, paid - penalty) };
   }).sort((a, b) => b.pending - a.pending);
@@ -306,14 +318,16 @@ function renderSummary(emp) {
 function renderLate(records, emp) {
   const from = document.getElementById('fl_from').value;
   const to = document.getElementById('fl_to').value;
+  const type = (document.getElementById('fl_type') || {}).value || '';
   let r = records;
   if (from) r = r.filter(x => x.date >= from);
   if (to) r = r.filter(x => x.date <= to);
+  if (type) r = r.filter(x => (x.type || 'late') === type);
   const tbody = document.getElementById('lateBody');
   const tfoot = document.getElementById('lateFoot');
   document.getElementById('lateCount').textContent = r.length;
   if (!r.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888;padding:20px;">No records.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;padding:20px;">No records.</td></tr>';
     tfoot.innerHTML = '';
     return;
   }
@@ -321,19 +335,28 @@ function renderLate(records, emp) {
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   if (pageState.late > totalPages) pageState.late = totalPages;
   const pageItems = paginate(sorted, pageState.late);
-  tbody.innerHTML = pageItems.map(x => `
+  tbody.innerHTML = pageItems.map(x => {
+    const t = x.type || 'late';
+    const badgeClass = t === 'late' ? 'badge-cash' : 'badge-party';
+    const details = t === 'late' ? ('Arrived ' + (x.arriveTime || '-')) : escapeHtml(x.description || '-');
+    return `
     <tr>
       <td>${x.date}</td>
       <td><strong>${escapeHtml(x.employee)}</strong></td>
-      <td>${x.arriveTime}</td>
-      <td class="pill-red">₹${db.penaltyPerDay}</td>
-    </tr>`).join('');
-  const totalAmt = r.length * db.penaltyPerDay;
-  const label = emp ? `Total for ${escapeHtml(emp)}` : 'Overall Total';
+      <td><span class="badge ${badgeClass}">${t}</span></td>
+      <td>${details}</td>
+      <td class="pill-red">₹${x.amount || 0}</td>
+    </tr>`;
+  }).join('');
+  const totalAmt = r.reduce((s, x) => s + (x.amount || 0), 0);
+  const labelParts = [];
+  if (emp) labelParts.push(escapeHtml(emp));
+  if (type) labelParts.push(type);
+  const label = labelParts.length ? `Total for ${labelParts.join(' / ')}` : 'Overall Total';
   tfoot.innerHTML = `
     <tr style="background:#f9fafb;font-weight:700;">
-      <td colspan="2">${label}</td>
-      <td>${r.length} day${r.length !== 1 ? 's' : ''}</td>
+      <td colspan="3">${label}</td>
+      <td>${r.length} record${r.length !== 1 ? 's' : ''}</td>
       <td class="pill-red">₹${totalAmt}</td>
     </tr>`;
   renderPagination('latePg', r.length, pageState.late, 'goLatePage');
@@ -385,16 +408,21 @@ function exportCSV() {
   sections.push('--- SUMMARY ---');
   sections.push(['Employee', 'Late Days', 'Penalty', 'Paid', 'Pending'].join(','));
   db.employees.forEach(emp => {
-    const lateDays = db.lateRecords.filter(r => r.employee === emp.name).length;
-    const penalty = lateDays * db.penaltyPerDay;
+    const empRecs = db.lateRecords.filter(r => r.employee === emp.name);
+    const lateDays = empRecs.filter(r => (r.type || 'late') === 'late').length;
+    const penalty = empRecs.reduce((s, r) => s + (r.amount || 0), 0);
     const paid = db.payments.filter(p => p.employee === emp.name).reduce((s, p) => s + (p.amount || 0), 0);
     const pending = Math.max(0, penalty - paid);
     sections.push([emp.name, lateDays, penalty, paid, pending].map(csvCell).join(','));
   });
   sections.push('');
-  sections.push('--- LATE RECORDS ---');
-  sections.push(['Date', 'Employee', 'Arrive Time', 'Penalty'].join(','));
-  db.lateRecords.forEach(r => sections.push([r.date, r.employee, r.arriveTime, db.penaltyPerDay].map(csvCell).join(',')));
+  sections.push('--- PENALTIES ---');
+  sections.push(['Date', 'Employee', 'Type', 'Details', 'Amount'].join(','));
+  db.lateRecords.forEach(r => {
+    const t = r.type || 'late';
+    const details = t === 'late' ? ('Arrived ' + (r.arriveTime || '')) : (r.description || '');
+    sections.push([r.date, r.employee, t, details, r.amount || 0].map(csvCell).join(','));
+  });
   sections.push('');
   sections.push('--- PAYMENTS ---');
   sections.push(['Date', 'Employee', 'Mode', 'Amount', 'Party Items'].join(','));

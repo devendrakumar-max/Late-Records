@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin — Late Records</title>
+<title>Admin — Hisab Kitab</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f9; color: #222; padding: 20px; }
@@ -84,7 +84,7 @@
 
 <div id="adminPanel" class="container" style="display:none;">
   <div class="header">
-    <h1>🔧 Admin Panel — Late Records</h1>
+    <h1>📒 Hisab Kitab — Admin Panel</h1>
     <div>
       <a href="index.html">👁 Public View</a>
       <a href="#" onclick="logout();return false;">Logout</a>
@@ -96,7 +96,7 @@
   <div class="tabs">
     <button class="tab active" onclick="showTab('dashboard', this)">📊 Dashboard</button>
     <button class="tab" onclick="showTab('employees', this)">👥 Employees</button>
-    <button class="tab" onclick="showTab('late', this)">⏰ Late Records</button>
+    <button class="tab" onclick="showTab('late', this)">⚖️ Penalties</button>
     <button class="tab" onclick="showTab('payments', this)">💰 Payments</button>
     <button class="tab" onclick="showTab('settings', this)">⚙️ Settings</button>
   </div>
@@ -151,17 +151,29 @@
   <!-- LATE RECORDS -->
   <div id="tab-late" class="tab-content">
     <div class="panel">
-      <h3 id="lateFormTitle">➕ Add Late Entry</h3>
-      <p style="font-size:12px;color:#666;margin-bottom:12px;">Each late entry = ₹<span id="penaltyAmtDisplay">120</span> penalty (auto)</p>
+      <h3 id="lateFormTitle">➕ Add Penalty</h3>
+      <p style="font-size:12px;color:#666;margin-bottom:12px;">Late penalty = ₹<span id="penaltyAmtDisplay">120</span> fixed. For "Other", enter custom amount + description.</p>
       <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+        <label style="display:flex;flex-direction:column;font-size:12px;color:#555;gap:4px;min-width:130px;">Type *
+          <select id="l_type" onchange="toggleLateFields()" style="padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+            <option value="late">Late</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
         <label style="display:flex;flex-direction:column;font-size:12px;color:#555;gap:4px;flex:1;min-width:160px;">Employee *
           <select id="l_employee" style="padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;"><option value="">-- Select --</option></select>
         </label>
         <label style="display:flex;flex-direction:column;font-size:12px;color:#555;gap:4px;min-width:140px;">Date *
           <input type="date" id="l_date" style="padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
         </label>
-        <label style="display:flex;flex-direction:column;font-size:12px;color:#555;gap:4px;min-width:120px;">Arrive Time *
+        <label id="field_arrive" style="display:flex;flex-direction:column;font-size:12px;color:#555;gap:4px;min-width:120px;">Arrive Time *
           <input type="time" id="l_arriveTime" style="padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+        </label>
+        <label id="field_amount" style="display:none;flex-direction:column;font-size:12px;color:#555;gap:4px;min-width:120px;">Amount (₹) *
+          <input type="number" id="l_amount" min="1" step="1" style="padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+        </label>
+        <label id="field_desc" style="display:none;flex-direction:column;font-size:12px;color:#555;gap:4px;flex:1;min-width:200px;">Description *
+          <input type="text" id="l_description" placeholder="Why this penalty?" style="padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
         </label>
         <button class="btn btn-save" onclick="saveLate()">💾 Save</button>
         <button class="btn btn-secondary" onclick="resetLateForm()">Clear</button>
@@ -169,17 +181,24 @@
       </div>
     </div>
     <div class="panel">
-      <h3>⏰ All Late Records (<span id="lateCount">0</span>)</h3>
+      <h3>⚖️ All Penalties (<span id="lateCount">0</span>)</h3>
       <div class="filters" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
         <label style="display:flex;flex-direction:column;font-size:11px;color:#555;gap:4px;">Employee
           <select id="al_emp" onchange="renderLate()" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;min-width:160px;">
             <option value="">All</option>
           </select>
         </label>
+        <label style="display:flex;flex-direction:column;font-size:11px;color:#555;gap:4px;">Type
+          <select id="al_type" onchange="renderLate()" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;min-width:120px;">
+            <option value="">All</option>
+            <option value="late">Late</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Date</th><th>Employee</th><th>Arrive</th><th>Penalty</th><th>Action</th></tr></thead>
+          <thead><tr><th>Date</th><th>Employee</th><th>Type</th><th>Details</th><th>Amount</th><th>Action</th></tr></thead>
           <tbody id="lateBody"></tbody>
           <tfoot id="lateFoot"></tfoot>
         </table>
@@ -343,6 +362,10 @@ async function loadData() {
     db.lateRecords = data.lateRecords || [];
     db.payments = data.payments || [];
     db.penaltyPerDay = data.penaltyPerDay || 120;
+    db.lateRecords = db.lateRecords.map(r => {
+      if (!r.type) return { ...r, type: 'late', amount: db.penaltyPerDay };
+      return r;
+    });
     renderAll();
   } catch (e) {
     showMsg('Error loading data from GitHub.', 'error');
@@ -424,13 +447,34 @@ function renderEmployees() {
 }
 
 // ---------- LATE RECORDS ----------
+function toggleLateFields() {
+  const type = document.getElementById('l_type').value;
+  const isLate = type === 'late';
+  document.getElementById('field_arrive').style.display = isLate ? 'flex' : 'none';
+  document.getElementById('field_amount').style.display = isLate ? 'none' : 'flex';
+  document.getElementById('field_desc').style.display = isLate ? 'none' : 'flex';
+}
+
 async function saveLate() {
+  const type = document.getElementById('l_type').value;
   const employee = document.getElementById('l_employee').value;
   const date = document.getElementById('l_date').value;
-  const arriveTime = document.getElementById('l_arriveTime').value;
-  if (!employee || !date || !arriveTime) { showMsg('All fields required.', 'error'); return; }
+  if (!employee || !date) { showMsg('Employee and Date required.', 'error'); return; }
   const editId = document.getElementById('l_editId').value;
-  const rec = { id: editId || Date.now().toString(), employee, date, arriveTime };
+  const rec = { id: editId || Date.now().toString(), employee, date, type };
+  if (type === 'late') {
+    const arriveTime = document.getElementById('l_arriveTime').value;
+    if (!arriveTime) { showMsg('Arrive Time required for Late.', 'error'); return; }
+    rec.arriveTime = arriveTime;
+    rec.amount = db.penaltyPerDay;
+  } else {
+    const amount = parseInt(document.getElementById('l_amount').value, 10);
+    const description = document.getElementById('l_description').value.trim();
+    if (!amount || amount <= 0) { showMsg('Valid amount required.', 'error'); return; }
+    if (!description) { showMsg('Description required for Other.', 'error'); return; }
+    rec.amount = amount;
+    rec.description = description;
+  }
   if (editId) {
     const idx = db.lateRecords.findIndex(r => r.id === editId);
     if (idx >= 0) db.lateRecords[idx] = rec;
@@ -439,43 +483,54 @@ async function saveLate() {
   }
   resetLateForm();
   renderAll();
-  await autoCommit(editId ? 'Late entry updated' : 'Late entry added');
+  await autoCommit(editId ? 'Penalty updated' : 'Penalty added (' + type + ')');
 }
 
 function editLate(id) {
   const r = db.lateRecords.find(x => x.id === id);
   if (!r) return;
   document.getElementById('l_editId').value = r.id;
+  document.getElementById('l_type').value = r.type || 'late';
   document.getElementById('l_employee').value = r.employee;
   document.getElementById('l_date').value = r.date;
-  document.getElementById('l_arriveTime').value = r.arriveTime;
-  document.getElementById('lateFormTitle').textContent = '✏️ Edit Late Entry';
+  document.getElementById('l_arriveTime').value = r.arriveTime || '';
+  document.getElementById('l_amount').value = r.amount || '';
+  document.getElementById('l_description').value = r.description || '';
+  toggleLateFields();
+  document.getElementById('lateFormTitle').textContent = '✏️ Edit Penalty';
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 async function deleteLate(id) {
-  if (!confirm('Delete this late entry?')) return;
+  if (!confirm('Delete this penalty?')) return;
   db.lateRecords = db.lateRecords.filter(r => r.id !== id);
   renderAll();
-  await autoCommit('Late entry deleted');
+  await autoCommit('Penalty deleted');
 }
 
 function resetLateForm() {
   document.getElementById('l_editId').value = '';
+  document.getElementById('l_type').value = 'late';
   document.getElementById('l_employee').value = '';
   document.getElementById('l_date').value = '';
   document.getElementById('l_arriveTime').value = '';
-  document.getElementById('lateFormTitle').textContent = '➕ Add Late Entry';
+  document.getElementById('l_amount').value = '';
+  document.getElementById('l_description').value = '';
+  toggleLateFields();
+  document.getElementById('lateFormTitle').textContent = '➕ Add Penalty';
 }
 
 function renderLate() {
   const tbody = document.getElementById('lateBody');
   const tfoot = document.getElementById('lateFoot');
   const filterEmp = (document.getElementById('al_emp') || {}).value || '';
-  const filtered = filterEmp ? db.lateRecords.filter(r => r.employee === filterEmp) : db.lateRecords;
+  const filterType = (document.getElementById('al_type') || {}).value || '';
+  let filtered = db.lateRecords;
+  if (filterEmp) filtered = filtered.filter(r => r.employee === filterEmp);
+  if (filterType) filtered = filtered.filter(r => (r.type || 'late') === filterType);
   document.getElementById('lateCount').textContent = filtered.length;
   if (!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;padding:20px;">No late records.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;padding:20px;">No penalty records.</td></tr>';
     if (tfoot) tfoot.innerHTML = '';
     renderPagination('latePg', 0, 1, 'goLatePage');
     return;
@@ -484,24 +539,33 @@ function renderLate() {
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   if (pageState.late > totalPages) pageState.late = totalPages;
   const pageItems = paginate(sorted, pageState.late);
-  tbody.innerHTML = pageItems.map(r => `
+  tbody.innerHTML = pageItems.map(r => {
+    const type = r.type || 'late';
+    const badgeClass = type === 'late' ? 'badge-cash' : 'badge-party';
+    const details = type === 'late' ? ('Arrived ' + (r.arriveTime || '-')) : escapeHtml(r.description || '-');
+    return `
     <tr>
       <td>${r.date}</td>
       <td><strong>${escapeHtml(r.employee)}</strong></td>
-      <td>${r.arriveTime}</td>
-      <td class="pill-red">₹${db.penaltyPerDay}</td>
+      <td><span class="badge ${badgeClass}">${type}</span></td>
+      <td>${details}</td>
+      <td class="pill-red">₹${r.amount || 0}</td>
       <td>
         <button class="btn btn-small btn-edit" onclick="editLate('${r.id}')">Edit</button>
         <button class="btn btn-small btn-delete" onclick="deleteLate('${r.id}')">Del</button>
       </td>
-    </tr>`).join('');
-  const totalDays = filtered.length;
-  const totalAmt = totalDays * db.penaltyPerDay;
-  const label = filterEmp ? `Total for ${escapeHtml(filterEmp)}` : 'Overall Total';
+    </tr>`;
+  }).join('');
+  const totalCount = filtered.length;
+  const totalAmt = filtered.reduce((s, r) => s + (r.amount || 0), 0);
+  const labelParts = [];
+  if (filterEmp) labelParts.push(escapeHtml(filterEmp));
+  if (filterType) labelParts.push(filterType);
+  const label = labelParts.length ? `Total for ${labelParts.join(' / ')}` : 'Overall Total';
   if (tfoot) tfoot.innerHTML = `
     <tr style="background:#f9fafb;font-weight:700;">
-      <td colspan="2">${label}</td>
-      <td>${totalDays} day${totalDays !== 1 ? 's' : ''}</td>
+      <td colspan="3">${label}</td>
+      <td>${totalCount} record${totalCount !== 1 ? 's' : ''}</td>
       <td class="pill-red">₹${totalAmt}</td>
       <td></td>
     </tr>`;
@@ -598,12 +662,13 @@ function renderPayments() {
 
 // ---------- DASHBOARD ----------
 function renderDashboard() {
-  const totalLate = db.lateRecords.length;
-  const totalPenalty = totalLate * db.penaltyPerDay;
+  const totalRecords = db.lateRecords.length;
+  const totalPenalty = db.lateRecords.reduce((s, r) => s + (r.amount || 0), 0);
   const totalPaid = db.payments.reduce((s, p) => s + (p.amount || 0), 0);
   const rowsAll = db.employees.map(emp => {
-    const lateDays = db.lateRecords.filter(r => r.employee === emp.name).length;
-    const penalty = lateDays * db.penaltyPerDay;
+    const empRecs = db.lateRecords.filter(r => r.employee === emp.name);
+    const lateDays = empRecs.filter(r => (r.type || 'late') === 'late').length;
+    const penalty = empRecs.reduce((s, r) => s + (r.amount || 0), 0);
     const paid = db.payments.filter(p => p.employee === emp.name).reduce((s, p) => s + (p.amount || 0), 0);
     return { name: emp.name, lateDays, penalty, paid, pending: Math.max(0, penalty - paid), advance: Math.max(0, paid - penalty) };
   });
@@ -611,7 +676,7 @@ function renderDashboard() {
   const totalAdvance = rowsAll.reduce((s, r) => s + r.advance, 0);
   document.getElementById('overallStats').innerHTML = `
     <div class="stat-card"><div class="label">Total Employees</div><div class="value">${db.employees.length}</div></div>
-    <div class="stat-card"><div class="label">Total Late Days</div><div class="value">${totalLate}</div></div>
+    <div class="stat-card"><div class="label">Total Penalties</div><div class="value">${totalRecords}</div></div>
     <div class="stat-card red"><div class="label">Total Penalty</div><div class="value">₹${totalPenalty}</div></div>
     <div class="stat-card green"><div class="label">Total Paid</div><div class="value">₹${totalPaid}</div></div>
     <div class="stat-card orange"><div class="label">Total Pending</div><div class="value">₹${totalPending}</div></div>
