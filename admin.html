@@ -63,6 +63,7 @@
   .badge-cash { background: #dbeafe; color: #1e40af; }
   .badge-party { background: #fef3c7; color: #92400e; }
   .badge-done { background: #d1fae5; color: #065f46; }
+  .badge-appraisal { background: #ede9fe; color: #5b21b6; }
   .pill-red { color: #dc2626; font-weight: 600; }
   .pill-green { color: #059669; font-weight: 600; }
   .party-note { font-size: 11px; color: #666; font-style: italic; margin-top: 2px; }
@@ -137,6 +138,10 @@
   <div id="tab-dashboard" class="tab-content active">
     <div class="stats-grid" id="overallStats"></div>
     <div class="panel">
+      <h3>🧾 Penalty Type Breakdown</h3>
+      <div class="stats-grid" id="typeBreakdown"></div>
+    </div>
+    <div class="panel">
       <h3>📈 Per Employee Summary</h3>
       <div class="table-wrap">
         <table>
@@ -184,11 +189,12 @@
   <div id="tab-late" class="tab-content">
     <div class="panel">
       <h3 id="lateFormTitle">➕ Add Penalty</h3>
-      <p style="font-size:12px;color:#666;margin-bottom:12px;">Late = ₹<span id="penaltyAmtDisplay">120</span> fixed. Other = Cash (amount) OR Party (item like pizza/samosa, amount optional).</p>
+      <p style="font-size:12px;color:#666;margin-bottom:12px;">Late = ₹<span id="penaltyAmtDisplay">120</span> fixed. Appraisal = custom amount. Other = Cash OR Party.</p>
       <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
         <label style="display:flex;flex-direction:column;font-size:12px;color:#555;gap:4px;min-width:130px;">Type *
           <select id="l_type" onchange="toggleLateFields()" style="padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
             <option value="late">Late</option>
+            <option value="appraisal">Appraisal</option>
             <option value="other">Other</option>
           </select>
         </label>
@@ -233,6 +239,7 @@
           <select id="al_type" onchange="renderLate()" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;min-width:120px;">
             <option value="">All</option>
             <option value="late">Late</option>
+            <option value="appraisal">Appraisal</option>
             <option value="other">Other</option>
           </select>
         </label>
@@ -585,15 +592,17 @@ function renderEmployees() {
 function toggleLateFields() {
   const type = document.getElementById('l_type').value;
   const isLate = type === 'late';
+  const isAppraisal = type === 'appraisal';
+  const isOther = type === 'other';
   const otherMode = document.getElementById('l_otherMode').value;
-  const isParty = !isLate && otherMode === 'party';
-  const isCash = !isLate && otherMode === 'cash';
+  const isParty = isOther && otherMode === 'party';
+  const isCash = isOther && otherMode === 'cash';
   document.getElementById('field_arrive').style.display = isLate ? 'flex' : 'none';
-  document.getElementById('field_otherMode').style.display = isLate ? 'none' : 'flex';
-  document.getElementById('field_amount').style.display = isLate ? 'none' : 'flex';
+  document.getElementById('field_otherMode').style.display = isOther ? 'flex' : 'none';
+  document.getElementById('field_amount').style.display = (isAppraisal || isOther) ? 'flex' : 'none';
   document.getElementById('field_item').style.display = isParty ? 'flex' : 'none';
-  document.getElementById('field_desc').style.display = isLate ? 'none' : 'flex';
-  document.getElementById('amtLabel').textContent = isCash ? 'Amount (₹) *' : 'Amount (₹) (optional)';
+  document.getElementById('field_desc').style.display = (isAppraisal || isOther) ? 'flex' : 'none';
+  document.getElementById('amtLabel').textContent = (isCash || isAppraisal) ? 'Amount (₹) *' : 'Amount (₹) (optional)';
 }
 
 async function saveLate() {
@@ -608,6 +617,13 @@ async function saveLate() {
     if (!arriveTime) { showMsg('Arrive Time required for Late.', 'error'); return; }
     rec.arriveTime = arriveTime;
     rec.amount = db.penaltyPerDay;
+  } else if (type === 'appraisal') {
+    const amountRaw = document.getElementById('l_amount').value;
+    const amount = amountRaw ? parseInt(amountRaw, 10) : 0;
+    if (!amount || amount <= 0) { showMsg('Valid amount required for Appraisal.', 'error'); return; }
+    rec.amount = amount;
+    const description = document.getElementById('l_description').value.trim();
+    if (description) rec.description = description;
   } else {
     const otherMode = document.getElementById('l_otherMode').value;
     const amountRaw = document.getElementById('l_amount').value;
@@ -677,6 +693,7 @@ function computePaidMap() {
   const byEmp = {};
   db.lateRecords.forEach(r => {
     const type = r.type || 'late';
+    // skip party (not cash-settled). late, appraisal, other/cash all pay from pool.
     if (type === 'other' && r.otherMode === 'party') return;
     if (!byEmp[r.employee]) byEmp[r.employee] = [];
     byEmp[r.employee].push(r);
@@ -757,11 +774,13 @@ function renderLate() {
   const paidMap = paidMapAll;
   tbody.innerHTML = pageItems.map(r => {
     const type = r.type || 'late';
-    const badgeClass = type === 'late' ? 'badge-cash' : 'badge-party';
+    const badgeClass = type === 'late' ? 'badge-cash' : type === 'appraisal' ? 'badge-appraisal' : 'badge-party';
     const typeLabel = type === 'other' ? ('other / ' + (r.otherMode || 'cash')) : type;
     let details;
     if (type === 'late') {
       details = 'Arrived ' + (r.arriveTime || '-');
+    } else if (type === 'appraisal') {
+      details = r.description ? escapeHtml(r.description) : '—';
     } else {
       const parts = [];
       if (r.otherMode === 'party' && r.item) parts.push('🎉 ' + escapeHtml(r.item));
@@ -775,7 +794,7 @@ function renderLate() {
           ? `<button class="btn btn-small btn-secondary" onclick="togglePartyDone('${r.id}')" title="Mark pending">↶ Pending</button>`
           : `<button class="btn btn-small btn-save" onclick="togglePartyDone('${r.id}')" title="Mark done">✓ Done</button>`)
       : '';
-    const isCashPayable = type === 'late' || (type === 'other' && r.otherMode === 'cash');
+    const isCashPayable = type === 'late' || type === 'appraisal' || (type === 'other' && r.otherMode === 'cash');
     const paidStatus = isCashPayable ? paidMap[r.id] : null;
     const isSettled = (isParty && r.completed) || paidStatus === 'paid';
     const rowStyle = isSettled ? 'background:#f0fdf4;border-left:3px solid #16a34a;' : '';
@@ -967,6 +986,17 @@ function renderDashboard() {
   });
   const totalPending = rowsAll.reduce((s, r) => s + r.pending, 0);
   const totalAdvance = rowsAll.reduce((s, r) => s + r.advance, 0);
+  // Type-wise breakdown
+  const byType = { late: {amt:0,count:0,paid:0}, appraisal: {amt:0,count:0,paid:0}, otherCash: {amt:0,count:0,paid:0}, otherParty: {amt:0,count:0,done:0} };
+  const paidMap = computePaidMap();
+  db.lateRecords.forEach(r => {
+    const t = r.type || 'late';
+    const amt = r.amount || 0;
+    if (t === 'late') { byType.late.amt += amt; byType.late.count++; if (paidMap[r.id] === 'paid') byType.late.paid += amt; }
+    else if (t === 'appraisal') { byType.appraisal.amt += amt; byType.appraisal.count++; if (paidMap[r.id] === 'paid') byType.appraisal.paid += amt; }
+    else if (t === 'other' && r.otherMode === 'cash') { byType.otherCash.amt += amt; byType.otherCash.count++; if (paidMap[r.id] === 'paid') byType.otherCash.paid += amt; }
+    else if (t === 'other' && r.otherMode === 'party') { byType.otherParty.amt += amt; byType.otherParty.count++; if (r.completed) byType.otherParty.done++; }
+  });
   document.getElementById('overallStats').innerHTML = `
     <div class="stat-card"><div class="label">Total Employees</div><div class="value">${db.employees.length}</div></div>
     <div class="stat-card"><div class="label">Total Penalties</div><div class="value">${totalRecords}</div></div>
@@ -975,6 +1005,31 @@ function renderDashboard() {
     <div class="stat-card orange"><div class="label">Total Pending</div><div class="value">₹${totalPending}</div></div>
     <div class="stat-card green"><div class="label">Total Advance</div><div class="value">₹${totalAdvance}</div></div>
   `;
+  const typeBreakdown = document.getElementById('typeBreakdown');
+  if (typeBreakdown) {
+    typeBreakdown.innerHTML = `
+      <div class="stat-card" style="border-left:4px solid #3b82f6;">
+        <div class="label">⏰ Late Total</div>
+        <div class="value">₹${byType.late.amt}</div>
+        <div style="font-size:11px;color:#666;margin-top:4px;">${byType.late.count} record${byType.late.count !== 1 ? 's' : ''} · Paid ₹${byType.late.paid}</div>
+      </div>
+      <div class="stat-card" style="border-left:4px solid #8b5cf6;">
+        <div class="label">📊 Appraisal Total</div>
+        <div class="value">₹${byType.appraisal.amt}</div>
+        <div style="font-size:11px;color:#666;margin-top:4px;">${byType.appraisal.count} record${byType.appraisal.count !== 1 ? 's' : ''} · Paid ₹${byType.appraisal.paid}</div>
+      </div>
+      <div class="stat-card" style="border-left:4px solid #f59e0b;">
+        <div class="label">💵 Other (Cash) Total</div>
+        <div class="value">₹${byType.otherCash.amt}</div>
+        <div style="font-size:11px;color:#666;margin-top:4px;">${byType.otherCash.count} record${byType.otherCash.count !== 1 ? 's' : ''} · Paid ₹${byType.otherCash.paid}</div>
+      </div>
+      <div class="stat-card" style="border-left:4px solid #ec4899;">
+        <div class="label">🎉 Other (Party) Total</div>
+        <div class="value">${byType.otherParty.count}</div>
+        <div style="font-size:11px;color:#666;margin-top:4px;">${byType.otherParty.done} done · ${byType.otherParty.count - byType.otherParty.done} pending · ₹${byType.otherParty.amt}</div>
+      </div>
+    `;
+  }
   const tbody = document.getElementById('summaryBody');
   if (!db.employees.length) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;padding:20px;">No employees yet.</td></tr>';

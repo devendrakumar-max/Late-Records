@@ -100,6 +100,10 @@
   </div>
 
   <div class="stats-grid" id="overallStats"></div>
+  <div class="panel" style="padding:14px 20px;">
+    <h3 style="font-size:14px;margin-bottom:12px;">🧾 Penalty Type Breakdown</h3>
+    <div class="stats-grid" id="typeBreakdown"></div>
+  </div>
 
   <div class="tabs">
     <button class="tab active" onclick="showTab('summary', this)">📊 Summary</button>
@@ -132,6 +136,7 @@
           <select id="fl_type" onchange="renderAll()">
             <option value="">All</option>
             <option value="late">Late</option>
+            <option value="appraisal">Appraisal</option>
             <option value="other">Other</option>
           </select>
         </label>
@@ -302,6 +307,15 @@ function renderStats(emp, lateFiltered, payFiltered) {
   const totalAdvance = Math.max(0, totalPaid - totalPenalty);
   const empLabel = emp ? 1 : db.employees.length;
   const empCardLabel = emp ? 'Employee' : 'Employees';
+  const byType = { late: 0, appraisal: 0, otherCash: 0, otherPartyCount: 0, otherPartyDone: 0, otherPartyAmt: 0 };
+  lateFiltered.forEach(r => {
+    const t = r.type || 'late';
+    const amt = r.amount || 0;
+    if (t === 'late') byType.late += amt;
+    else if (t === 'appraisal') byType.appraisal += amt;
+    else if (t === 'other' && r.otherMode === 'cash') byType.otherCash += amt;
+    else if (t === 'other' && r.otherMode === 'party') { byType.otherPartyCount++; byType.otherPartyAmt += amt; if (r.completed) byType.otherPartyDone++; }
+  });
   document.getElementById('overallStats').innerHTML = `
     <div class="stat-card"><div class="label">${empCardLabel}</div><div class="value">${empLabel}</div></div>
     <div class="stat-card"><div class="label">Total Penalties</div><div class="value">${totalRecords}</div></div>
@@ -310,6 +324,15 @@ function renderStats(emp, lateFiltered, payFiltered) {
     <div class="stat-card orange"><div class="label">Pending</div><div class="value">₹${totalPending}</div></div>
     <div class="stat-card green"><div class="label">Advance</div><div class="value">₹${totalAdvance}</div></div>
   `;
+  const typeBreakdown = document.getElementById('typeBreakdown');
+  if (typeBreakdown) {
+    typeBreakdown.innerHTML = `
+      <div class="stat-card" style="border-left:4px solid #3b82f6;"><div class="label">⏰ Late</div><div class="value">₹${byType.late}</div></div>
+      <div class="stat-card" style="border-left:4px solid #8b5cf6;"><div class="label">📊 Appraisal</div><div class="value">₹${byType.appraisal}</div></div>
+      <div class="stat-card" style="border-left:4px solid #f59e0b;"><div class="label">💵 Other Cash</div><div class="value">₹${byType.otherCash}</div></div>
+      <div class="stat-card" style="border-left:4px solid #ec4899;"><div class="label">🎉 Other Party</div><div class="value">${byType.otherPartyCount}</div><div style="font-size:11px;color:#666;margin-top:4px;">${byType.otherPartyDone} done · ₹${byType.otherPartyAmt}</div></div>
+    `;
+  }
 }
 
 function renderSummary(emp) {
@@ -355,7 +378,7 @@ function renderLate(records, emp) {
     r = r.filter(x => {
       const t = x.type || 'late';
       const isParty = t === 'other' && x.otherMode === 'party';
-      const isCashPayable = t === 'late' || (t === 'other' && x.otherMode === 'cash');
+      const isCashPayable = t === 'late' || t === 'appraisal' || (t === 'other' && x.otherMode === 'cash');
       return statusSel.some(s => {
         if (s === 'paid') return isCashPayable && paidMapAll[x.id] === 'paid';
         if (s === 'unpaid') return isCashPayable && paidMapAll[x.id] !== 'paid';
@@ -380,11 +403,13 @@ function renderLate(records, emp) {
   const paidMap = paidMapAll;
   tbody.innerHTML = pageItems.map(x => {
     const t = x.type || 'late';
-    const badgeClass = t === 'late' ? 'badge-cash' : 'badge-party';
+    const badgeClass = t === 'late' ? 'badge-cash' : t === 'appraisal' ? 'badge-appraisal' : 'badge-party';
     const typeLabel = t === 'other' ? ('other / ' + (x.otherMode || 'cash')) : t;
     let details;
     if (t === 'late') {
       details = 'Arrived ' + (x.arriveTime || '-');
+    } else if (t === 'appraisal') {
+      details = x.description ? escapeHtml(x.description) : '—';
     } else {
       const parts = [];
       if (x.otherMode === 'party' && x.item) parts.push('🎉 ' + escapeHtml(x.item));
@@ -393,7 +418,7 @@ function renderLate(records, emp) {
     }
     const amtDisplay = (x.amount && x.amount > 0) ? ('₹' + x.amount) : '—';
     const isParty = t === 'other' && x.otherMode === 'party';
-    const isCashPayable = t === 'late' || (t === 'other' && x.otherMode === 'cash');
+    const isCashPayable = t === 'late' || t === 'appraisal' || (t === 'other' && x.otherMode === 'cash');
     const paidStatus = isCashPayable ? paidMap[x.id] : null;
     const isSettled = (isParty && x.completed) || paidStatus === 'paid';
     const rowStyle = isSettled ? 'background:#f0fdf4;border-left:3px solid #16a34a;' : '';
@@ -431,7 +456,7 @@ function renderLate(records, emp) {
   let paidAmt = 0, pendingAmt = 0;
   r.forEach(x => {
     const t = x.type || 'late';
-    const isCashPayable = t === 'late' || (t === 'other' && x.otherMode === 'cash');
+    const isCashPayable = t === 'late' || t === 'appraisal' || (t === 'other' && x.otherMode === 'cash');
     const amt = x.amount || 0;
     if (isCashPayable) {
       if (paidMap[x.id] === 'paid') paidAmt += amt;
