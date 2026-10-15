@@ -579,18 +579,22 @@ function updateTokenStatus() {
     : '<span style="color:#dc2626;">⚠ Not set</span> — prompts on first save';
 }
 
-async function autoCommit(actionLabel) {
+async function autoCommit(actionLabel, attempt = 0) {
   const token = getToken();
   if (!token) { showMsg(actionLabel + ' locally — NOT synced to GitHub (no token)!', 'error'); return; }
-  showMsg(actionLabel + '. Syncing to GitHub...', 'info');
+  showMsg(actionLabel + '. Syncing to GitHub...' + (attempt ? ' (retry ' + attempt + ')' : ''), 'info');
   const apiBase = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${GITHUB_FILE}`;
   try {
-    const getRes = await fetch(apiBase + '?ref=' + GITHUB_BRANCH, {
-      headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json' }
+    const getRes = await fetch(apiBase + '?ref=' + GITHUB_BRANCH + '&t=' + Date.now(), {
+      headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json', 'Cache-Control': 'no-cache' }
     });
     let sha = null;
-    if (getRes.ok) sha = (await getRes.json()).sha;
-    else if (getRes.status !== 404) throw new Error('GitHub API error: ' + getRes.status);
+    let remoteData = null;
+    if (getRes.ok) {
+      const info = await getRes.json();
+      sha = info.sha;
+      try { remoteData = JSON.parse(decodeURIComponent(escape(atob(info.content.replace(/\n/g, ''))))); } catch (e) {}
+    } else if (getRes.status !== 404) throw new Error('GitHub API error: ' + getRes.status);
     const payload = { ...db, lastUpdated: new Date().toISOString() };
     const content = btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2))));
     const body = { message: actionLabel + ' — ' + new Date().toISOString(), content, branch: GITHUB_BRANCH };
@@ -600,7 +604,14 @@ async function autoCommit(actionLabel) {
       headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    if (!putRes.ok) { const err = await putRes.json(); throw new Error(err.message || 'Commit failed'); }
+    if (!putRes.ok) {
+      const err = await putRes.json();
+      if ((err.message || '').includes('does not match') && attempt < 2) {
+        await new Promise(r => setTimeout(r, 500));
+        return autoCommit(actionLabel, attempt + 1);
+      }
+      throw new Error(err.message || 'Commit failed');
+    }
     showMsg('✅ Synced to GitHub! Public page updates in ~1 min.', 'success');
   } catch (e) { showMsg('❌ Sync error: ' + e.message, 'error'); }
   updateTokenStatus();
