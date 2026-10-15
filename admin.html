@@ -671,11 +671,26 @@ function renderLate() {
   let partyRows = '';
   if (pendingSummary) partyRows += `<tr style="background:#fef3c7;"><td colspan="2" style="font-weight:600;">🎉 Pending Parties</td><td colspan="4">${escapeHtml(pendingSummary)}</td></tr>`;
   if (doneSummary) partyRows += `<tr style="background:#d1fae5;"><td colspan="2" style="font-weight:600;">✓ Done Parties</td><td colspan="4">${escapeHtml(doneSummary)}</td></tr>`;
+  let paidAmt = 0, pendingAmt = 0;
+  filtered.forEach(r => {
+    const type = r.type || 'late';
+    const isCashPayable = type === 'late' || (type === 'other' && r.otherMode === 'cash');
+    const amt = r.amount || 0;
+    if (isCashPayable) {
+      if (paidMap[r.id] === 'paid') paidAmt += amt;
+      else pendingAmt += amt;
+    }
+  });
   if (tfoot) tfoot.innerHTML = `
     <tr style="background:#f9fafb;font-weight:700;">
       <td colspan="3">${label}</td>
       <td>${totalCount} record${totalCount !== 1 ? 's' : ''}</td>
       <td class="pill-red">₹${totalAmt}</td>
+      <td></td>
+    </tr>
+    <tr style="background:#f9fafb;">
+      <td colspan="3" style="font-weight:600;">💰 Cash Settled</td>
+      <td colspan="2"><span class="pill-green">✓ Paid: ₹${paidAmt}</span> &nbsp;·&nbsp; <span class="pill-red">Pending: ₹${pendingAmt}</span></td>
       <td></td>
     </tr>${partyRows}`;
   renderPagination('latePg', filtered.length, pageState.late, 'goLatePage');
