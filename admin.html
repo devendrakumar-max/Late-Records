@@ -89,6 +89,19 @@
   .modal-foot .btn-cancel:hover { background: #d1d5db; }
   .modal-foot .btn-confirm { background: #dc2626; color: #fff; }
   .modal-foot .btn-confirm:hover { background: #b91c1c; }
+
+  .multi-wrap { position: relative; display: inline-block; }
+  .multi-trigger { padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; background: #fff; cursor: pointer; min-width: 170px; text-align: left; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+  .multi-trigger::after { content: '▾'; color: #666; font-size: 10px; }
+  .multi-trigger:hover { border-color: #9ca3af; }
+  .multi-dropdown { display: none; position: absolute; top: calc(100% + 4px); left: 0; background: #fff; border: 1px solid #d1d5db; border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,0.12); min-width: 200px; z-index: 50; padding: 6px 0; }
+  .multi-dropdown.show { display: block; }
+  .multi-dropdown label { display: flex; align-items: center; gap: 8px; padding: 7px 12px; font-size: 13px; cursor: pointer; color: #333; }
+  .multi-dropdown label:hover { background: #f3f4f6; }
+  .multi-dropdown input[type=checkbox] { margin: 0; cursor: pointer; }
+  .multi-dropdown .mdr-actions { display: flex; justify-content: space-between; padding: 6px 12px; border-top: 1px solid #e5e7eb; margin-top: 4px; }
+  .multi-dropdown .mdr-actions button { background: none; border: none; color: #dc2626; font-size: 12px; cursor: pointer; padding: 2px 4px; }
+  .multi-dropdown .mdr-actions button:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -222,15 +235,21 @@
             <option value="other">Other</option>
           </select>
         </label>
-        <label style="display:flex;flex-direction:column;font-size:11px;color:#555;gap:4px;">Status
-          <select id="al_status" onchange="renderLate()" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;min-width:150px;">
-            <option value="">All</option>
-            <option value="paid">✓ Paid (cash)</option>
-            <option value="unpaid">Unpaid / Partial</option>
-            <option value="party_pending">🎉 Party Pending</option>
-            <option value="party_done">✓ Party Done</option>
-          </select>
-        </label>
+        <div style="display:flex;flex-direction:column;font-size:11px;color:#555;gap:4px;">Status
+          <div class="multi-wrap">
+            <button type="button" class="multi-trigger" id="al_statusBtn" onclick="toggleStatusDropdown(event)"><span id="al_statusLabel">All</span></button>
+            <div class="multi-dropdown" id="al_statusDd">
+              <label><input type="checkbox" class="status-cb" value="paid" onchange="onStatusChange()"> ✓ Paid (cash)</label>
+              <label><input type="checkbox" class="status-cb" value="unpaid" onchange="onStatusChange()"> Unpaid / Partial</label>
+              <label><input type="checkbox" class="status-cb" value="party_pending" onchange="onStatusChange()"> 🎉 Party Pending</label>
+              <label><input type="checkbox" class="status-cb" value="party_done" onchange="onStatusChange()"> ✓ Party Done</label>
+              <div class="mdr-actions">
+                <button type="button" onclick="clearStatus()">Clear</button>
+                <button type="button" onclick="document.getElementById('al_statusDd').classList.remove('show')">Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="table-wrap">
         <table>
@@ -478,6 +497,27 @@ function addEmployee() {
   autoCommit('Employee added: ' + name);
 }
 
+function toggleStatusDropdown(e) {
+  e.stopPropagation();
+  document.getElementById('al_statusDd').classList.toggle('show');
+}
+function clearStatus() {
+  document.querySelectorAll('.status-cb').forEach(cb => cb.checked = false);
+  onStatusChange();
+}
+function onStatusChange() {
+  const sel = Array.from(document.querySelectorAll('.status-cb:checked')).map(cb => cb.value);
+  const labels = { paid: '✓ Paid', unpaid: 'Unpaid', party_pending: '🎉 Pending', party_done: '✓ Done' };
+  const txt = sel.length === 0 ? 'All' : sel.length <= 2 ? sel.map(s => labels[s]).join(', ') : sel.length + ' selected';
+  document.getElementById('al_statusLabel').textContent = txt;
+  renderLate();
+}
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('al_statusDd');
+  const btn = document.getElementById('al_statusBtn');
+  if (dd && !dd.contains(e.target) && e.target !== btn && !btn.contains(e.target)) dd.classList.remove('show');
+});
+
 function openConfirmModal({ title, bodyHtml, confirmLabel, onConfirm }) {
   const modal = document.getElementById('confirmModal');
   document.getElementById('cm_title').textContent = title || 'Confirm';
@@ -683,21 +723,23 @@ function renderLate() {
   const tfoot = document.getElementById('lateFoot');
   const filterEmp = (document.getElementById('al_emp') || {}).value || '';
   const filterType = (document.getElementById('al_type') || {}).value || '';
-  const filterStatus = (document.getElementById('al_status') || {}).value || '';
+  const statusSel = Array.from(document.querySelectorAll('.status-cb:checked')).map(cb => cb.value);
   const paidMapAll = computePaidMap();
   let filtered = db.lateRecords;
   if (filterEmp) filtered = filtered.filter(r => r.employee === filterEmp);
   if (filterType) filtered = filtered.filter(r => (r.type || 'late') === filterType);
-  if (filterStatus) {
+  if (statusSel.length) {
     filtered = filtered.filter(r => {
       const t = r.type || 'late';
       const isParty = t === 'other' && r.otherMode === 'party';
       const isCashPayable = t === 'late' || (t === 'other' && r.otherMode === 'cash');
-      if (filterStatus === 'paid') return isCashPayable && paidMapAll[r.id] === 'paid';
-      if (filterStatus === 'unpaid') return isCashPayable && paidMapAll[r.id] !== 'paid';
-      if (filterStatus === 'party_pending') return isParty && !r.completed;
-      if (filterStatus === 'party_done') return isParty && r.completed;
-      return true;
+      return statusSel.some(s => {
+        if (s === 'paid') return isCashPayable && paidMapAll[r.id] === 'paid';
+        if (s === 'unpaid') return isCashPayable && paidMapAll[r.id] !== 'paid';
+        if (s === 'party_pending') return isParty && !r.completed;
+        if (s === 'party_done') return isParty && r.completed;
+        return false;
+      });
     });
   }
   document.getElementById('lateCount').textContent = filtered.length;

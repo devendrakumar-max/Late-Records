@@ -59,6 +59,16 @@
   .pagination button.active { background: #667eea; color: #fff; border-color: #667eea; }
   .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
   .pagination .page-info { font-size: 12px; color: #666; margin: 0 8px; }
+  .multi-wrap { position: relative; display: inline-block; }
+  .multi-trigger { padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; background: #fff; cursor: pointer; min-width: 170px; text-align: left; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+  .multi-trigger::after { content: '▾'; color: #666; font-size: 10px; }
+  .multi-dropdown { display: none; position: absolute; top: calc(100% + 4px); left: 0; background: #fff; border: 1px solid #d1d5db; border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,0.12); min-width: 200px; z-index: 50; padding: 6px 0; }
+  .multi-dropdown.show { display: block; }
+  .multi-dropdown label { display: flex; align-items: center; gap: 8px; padding: 7px 12px; font-size: 13px; cursor: pointer; color: #333; }
+  .multi-dropdown label:hover { background: #f3f4f6; }
+  .multi-dropdown .mdr-actions { display: flex; justify-content: space-between; padding: 6px 12px; border-top: 1px solid #e5e7eb; margin-top: 4px; }
+  .multi-dropdown .mdr-actions button { background: none; border: none; color: #667eea; font-size: 12px; cursor: pointer; padding: 2px 4px; }
+  .multi-dropdown .mdr-actions button:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -124,15 +134,21 @@
             <option value="other">Other</option>
           </select>
         </label>
-        <label>Status
-          <select id="fl_status" onchange="renderAll()">
-            <option value="">All</option>
-            <option value="paid">✓ Paid (cash)</option>
-            <option value="unpaid">Unpaid / Partial</option>
-            <option value="party_pending">🎉 Party Pending</option>
-            <option value="party_done">✓ Party Done</option>
-          </select>
-        </label>
+        <div style="display:flex;flex-direction:column;font-size:11px;color:#555;gap:4px;">Status
+          <div class="multi-wrap">
+            <button type="button" class="multi-trigger" id="fl_statusBtn" onclick="toggleStatusDropdown(event)"><span id="fl_statusLabel">All</span></button>
+            <div class="multi-dropdown" id="fl_statusDd">
+              <label><input type="checkbox" class="status-cb" value="paid" onchange="onStatusChange()"> ✓ Paid (cash)</label>
+              <label><input type="checkbox" class="status-cb" value="unpaid" onchange="onStatusChange()"> Unpaid / Partial</label>
+              <label><input type="checkbox" class="status-cb" value="party_pending" onchange="onStatusChange()"> 🎉 Party Pending</label>
+              <label><input type="checkbox" class="status-cb" value="party_done" onchange="onStatusChange()"> ✓ Party Done</label>
+              <div class="mdr-actions">
+                <button type="button" onclick="clearStatus()">Clear</button>
+                <button type="button" onclick="document.getElementById('fl_statusDd').classList.remove('show')">Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
         <button class="btn" onclick="renderAll()">Apply</button>
         <button class="btn" style="background:#6b7280;" onclick="resetDateFilter()">Reset</button>
       </div>
@@ -328,22 +344,24 @@ function renderLate(records, emp) {
   const from = document.getElementById('fl_from').value;
   const to = document.getElementById('fl_to').value;
   const type = (document.getElementById('fl_type') || {}).value || '';
-  const status = (document.getElementById('fl_status') || {}).value || '';
+  const statusSel = Array.from(document.querySelectorAll('.status-cb:checked')).map(cb => cb.value);
   const paidMapAll = computePaidMap();
   let r = records;
   if (from) r = r.filter(x => x.date >= from);
   if (to) r = r.filter(x => x.date <= to);
   if (type) r = r.filter(x => (x.type || 'late') === type);
-  if (status) {
+  if (statusSel.length) {
     r = r.filter(x => {
       const t = x.type || 'late';
       const isParty = t === 'other' && x.otherMode === 'party';
       const isCashPayable = t === 'late' || (t === 'other' && x.otherMode === 'cash');
-      if (status === 'paid') return isCashPayable && paidMapAll[x.id] === 'paid';
-      if (status === 'unpaid') return isCashPayable && paidMapAll[x.id] !== 'paid';
-      if (status === 'party_pending') return isParty && !x.completed;
-      if (status === 'party_done') return isParty && x.completed;
-      return true;
+      return statusSel.some(s => {
+        if (s === 'paid') return isCashPayable && paidMapAll[x.id] === 'paid';
+        if (s === 'unpaid') return isCashPayable && paidMapAll[x.id] !== 'paid';
+        if (s === 'party_pending') return isParty && !x.completed;
+        if (s === 'party_done') return isParty && x.completed;
+        return false;
+      });
     });
   }
   const tbody = document.getElementById('lateBody');
@@ -428,6 +446,27 @@ function renderLate(records, emp) {
     </tr>${partyRows}`;
   renderPagination('latePg', r.length, pageState.late, 'goLatePage');
 }
+
+function toggleStatusDropdown(e) {
+  e.stopPropagation();
+  document.getElementById('fl_statusDd').classList.toggle('show');
+}
+function clearStatus() {
+  document.querySelectorAll('.status-cb').forEach(cb => cb.checked = false);
+  onStatusChange();
+}
+function onStatusChange() {
+  const sel = Array.from(document.querySelectorAll('.status-cb:checked')).map(cb => cb.value);
+  const labels = { paid: '✓ Paid', unpaid: 'Unpaid', party_pending: '🎉 Pending', party_done: '✓ Done' };
+  const txt = sel.length === 0 ? 'All' : sel.length <= 2 ? sel.map(s => labels[s]).join(', ') : sel.length + ' selected';
+  document.getElementById('fl_statusLabel').textContent = txt;
+  renderAll();
+}
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('fl_statusDd');
+  const btn = document.getElementById('fl_statusBtn');
+  if (dd && !dd.contains(e.target) && e.target !== btn && !btn.contains(e.target)) dd.classList.remove('show');
+});
 
 function computePaidMap() {
   const paidMap = {};
