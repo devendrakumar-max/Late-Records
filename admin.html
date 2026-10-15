@@ -544,6 +544,30 @@ async function togglePartyDone(id) {
   await autoCommit('Party ' + (r.completed ? 'marked done' : 'reopened') + ': ' + (r.item || ''));
 }
 
+function computePaidMap() {
+  // FIFO: for each employee, pay off oldest cash-payable penalties first
+  // Cash-payable = late + other/cash. Party is tracked separately via completed flag.
+  const paidMap = {};
+  const byEmp = {};
+  db.lateRecords.forEach(r => {
+    const type = r.type || 'late';
+    if (type === 'other' && r.otherMode === 'party') return;
+    if (!byEmp[r.employee]) byEmp[r.employee] = [];
+    byEmp[r.employee].push(r);
+  });
+  Object.keys(byEmp).forEach(emp => {
+    const recs = [...byEmp[emp]].sort((a, b) => a.date.localeCompare(b.date));
+    let pool = db.payments.filter(p => p.employee === emp).reduce((s, p) => s + (p.amount || 0), 0);
+    recs.forEach(r => {
+      const need = r.amount || 0;
+      if (pool >= need) { paidMap[r.id] = 'paid'; pool -= need; }
+      else if (pool > 0) { paidMap[r.id] = 'partial'; pool = 0; }
+      else paidMap[r.id] = 'unpaid';
+    });
+  });
+  return paidMap;
+}
+
 function summarizePartyItems(records) {
   const counts = {};
   records.forEach(r => {
@@ -588,6 +612,7 @@ function renderLate() {
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   if (pageState.late > totalPages) pageState.late = totalPages;
   const pageItems = paginate(sorted, pageState.late);
+  const paidMap = computePaidMap();
   tbody.innerHTML = pageItems.map(r => {
     const type = r.type || 'late';
     const badgeClass = type === 'late' ? 'badge-cash' : 'badge-party';
@@ -608,10 +633,17 @@ function renderLate() {
           ? `<button class="btn btn-small btn-secondary" onclick="togglePartyDone('${r.id}')" title="Mark pending">↶ Pending</button>`
           : `<button class="btn btn-small btn-save" onclick="togglePartyDone('${r.id}')" title="Mark done">✓ Done</button>`)
       : '';
-    const rowStyle = (isParty && r.completed) ? 'opacity:0.55;text-decoration:line-through;' : '';
-    const statusBadge = isParty
-      ? (r.completed ? ' <span class="badge badge-cash">✓ done</span>' : ' <span class="badge badge-party">pending</span>')
-      : '';
+    const isCashPayable = type === 'late' || (type === 'other' && r.otherMode === 'cash');
+    const paidStatus = isCashPayable ? paidMap[r.id] : null;
+    const rowStyle = ((isParty && r.completed) || paidStatus === 'paid') ? 'opacity:0.55;text-decoration:line-through;' : '';
+    let statusBadge = '';
+    if (isParty) {
+      statusBadge = r.completed ? ' <span class="badge badge-cash">✓ done</span>' : ' <span class="badge badge-party">pending</span>';
+    } else if (isCashPayable) {
+      if (paidStatus === 'paid') statusBadge = ' <span class="badge badge-cash">✓ paid</span>';
+      else if (paidStatus === 'partial') statusBadge = ' <span class="badge badge-party">partial</span>';
+      else statusBadge = ' <span class="badge badge-party">unpaid</span>';
+    }
     return `
     <tr style="${rowStyle}">
       <td>${r.date}</td>
