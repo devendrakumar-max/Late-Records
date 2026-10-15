@@ -1,7 +1,13 @@
 {
-  "employees": [],
+  "employees": [
+    {
+      "id": "1792040942446",
+      "name": "Devendra Yadav",
+      "addedOn": "2026-10-15"
+    }
+  ],
   "lateRecords": [],
   "payments": [],
   "penaltyPerDay": 120,
-  "lastUpdated": ""
+  "lastUpdated": "2026-10-15T05:09:03.024Z"
 }
