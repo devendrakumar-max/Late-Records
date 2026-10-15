@@ -43,6 +43,16 @@
   ],
   "lateRecords": [
     {
+      "id": "1792045308918",
+      "employee": "Devendra Yadav",
+      "date": "2026-09-22",
+      "type": "other",
+      "otherMode": "party",
+      "item": "Samosa",
+      "amount": 0,
+      "description": "'kr skte h' work bolne pe"
+    },
+    {
       "id": "1792044795684",
       "employee": "Devendra Yadav",
       "date": "2026-09-14",
@@ -88,5 +98,5 @@
     }
   ],
   "penaltyPerDay": 120,
-  "lastUpdated": "2026-10-15T06:13:16.520Z"
+  "lastUpdated": "2026-10-15T06:21:49.769Z"
 }
