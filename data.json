@@ -60,7 +60,9 @@
       "otherMode": "party",
       "item": "Burger",
       "amount": 0,
-      "description": "U3 Mock meeting me 'kr skte hai' ye word bolne ki wjh se"
+      "description": "U3 Mock meeting me 'kr skte hai' ye word bolne ki wjh se",
+      "completed": true,
+      "completedOn": "2026-10-15"
     },
     {
       "id": "1792042493277",
@@ -106,5 +108,5 @@
     }
   ],
   "penaltyPerDay": 120,
-  "lastUpdated": "2026-10-15T06:27:12.196Z"
+  "lastUpdated": "2026-10-15T06:28:07.971Z"
 }
