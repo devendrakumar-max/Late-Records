@@ -41,8 +41,15 @@
       "addedOn": "2026-10-15"
     }
   ],
-  "lateRecords": [],
+  "lateRecords": [
+    {
+      "id": "1792041505235",
+      "employee": "Simran Saini",
+      "date": "2026-10-15",
+      "arriveTime": "09:02"
+    }
+  ],
   "payments": [],
   "penaltyPerDay": 120,
-  "lastUpdated": "2026-10-15T05:17:42.928Z"
+  "lastUpdated": "2026-10-15T05:18:26.041Z"
 }
