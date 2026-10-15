@@ -51,14 +51,6 @@
       "amount": 120
     },
     {
-      "id": "1792066783698",
-      "employee": "Arti Yadav",
-      "date": "2026-10-01",
-      "type": "late",
-      "arriveTime": "09:05",
-      "amount": 120
-    },
-    {
       "id": "1792066637804",
       "employee": "Arti Yadav",
       "date": "2026-10-05",
@@ -148,5 +140,5 @@
     }
   ],
   "penaltyPerDay": 120,
-  "lastUpdated": "2026-10-15T12:20:32.383Z"
+  "lastUpdated": "2026-10-15T12:23:33.301Z"
 }
