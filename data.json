@@ -1,4 +1,16 @@
 {
-  "records": [],
-  "lastUpdated": ""
+  "records": [
+    {
+      "id": "1792039423529",
+      "date": "2026-10-15",
+      "employee": "Simran Saini",
+      "arriveTime": "09:02",
+      "reason": "",
+      "penaltyPaid": "no",
+      "penaltyMode": "",
+      "penaltyDate": "",
+      "partyDetails": ""
+    }
+  ],
+  "lastUpdated": "2026-10-15T04:44:09.945Z"
 }
