@@ -79,6 +79,41 @@
   .pm-body { padding:18px 20px; overflow-y:auto; font-size:14px; color:#333; }
   .pm-foot { padding:12px 20px; border-top:1px solid #eee; text-align:right; }
   .pm-foot button { background:#667eea; color:#fff; border:none; padding:8px 18px; border-radius:6px; cursor:pointer; font-weight:500; }
+  /* Hero + simplified dashboard (public) */
+  .hero { background:linear-gradient(135deg,#eef2ff 0%,#fff 60%); border:1px solid #c7d2fe; border-radius:14px; padding:22px 26px; margin-bottom:16px; }
+  .hero-line { display:flex; align-items:baseline; flex-wrap:wrap; gap:10px 24px; }
+  .hero-line .big { font-size:32px; font-weight:800; color:#4f46e5; line-height:1; }
+  .hero-line .big.green { color:#059669; }
+  .hero-line .big.neutral { color:#374151; }
+  .hero-line .lbl { font-size:13px; color:#777; margin-bottom:4px; }
+  .hero-line .sep { color:#ddd; font-size:28px; }
+  .hero-prog { margin-top:14px; height:10px; background:#e0e7ff; border-radius:999px; overflow:hidden; }
+  .hero-prog > div { height:100%; background:linear-gradient(90deg,#10b981,#059669); border-radius:999px; transition:width 0.4s; }
+  .hero-prog-label { margin-top:6px; font-size:12px; color:#666; }
+  .section-h { font-size:14px; font-weight:700; color:#333; margin:0 0 10px 0; display:flex; align-items:center; gap:8px; }
+  .owe-list { display:flex; flex-direction:column; gap:8px; }
+  .owe-row { display:flex; align-items:center; gap:12px; padding:12px 14px; background:#fff; border:1px solid #e5e7eb; border-radius:10px; cursor:pointer; transition:all 0.15s; }
+  .owe-row:hover { border-color:#818cf8; background:#f5f7ff; transform:translateX(2px); }
+  .owe-row.clear { cursor:default; opacity:0.75; border-color:#d1fae5; background:#f0fdf4; }
+  .owe-row.clear:hover { transform:none; }
+  .owe-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .owe-dot.red { background:#dc2626; }
+  .owe-dot.green { background:#10b981; }
+  .owe-name { flex:1; font-weight:600; color:#333; font-size:14px; }
+  .owe-sub { font-size:11px; color:#888; font-weight:400; margin-left:6px; }
+  .owe-amt { font-weight:700; color:#dc2626; font-size:16px; }
+  .owe-amt.green { color:#059669; font-size:13px; font-weight:500; }
+  .owe-arrow { color:#999; font-size:14px; }
+  .party-strip { padding:14px 18px; background:#fdf2f8; border:1px solid #fbcfe8; border-radius:10px; margin-top:14px; display:flex; align-items:center; gap:12px; font-size:14px; color:#9d174d; cursor:pointer; }
+  .party-strip .items { flex:1; font-weight:500; }
+  .party-strip.empty { background:#f0fdf4; border-color:#bbf7d0; color:#166534; cursor:default; }
+  details.advanced { margin-top:14px; }
+  details.advanced > summary { cursor:pointer; padding:12px 16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:10px; font-size:13px; font-weight:600; color:#555; list-style:none; display:flex; align-items:center; justify-content:space-between; }
+  details.advanced > summary::-webkit-details-marker { display:none; }
+  details.advanced > summary:after { content:'▼'; font-size:10px; color:#999; transition:transform 0.2s; }
+  details.advanced[open] > summary:after { transform:rotate(180deg); }
+  details.advanced > div { padding:14px 4px 0 4px; }
+  @media(max-width:600px) { .hero-line .big { font-size:26px; } .hero { padding:18px; } }
 </style>
 </head>
 <body>
@@ -108,22 +143,21 @@
     <span id="filterNote" style="font-size:12px;color:#667eea;font-weight:500;"></span>
   </div>
 
-  <div class="stats-grid" id="overallStats"></div>
-  <div class="panel" style="padding:14px 20px;">
-    <h3 style="font-size:14px;margin-bottom:12px;">🧾 Penalty Type Breakdown</h3>
-    <div class="stats-grid" id="typeBreakdown"></div>
+  <div class="hero" id="heroCard"></div>
+
+  <div class="panel">
+    <div class="section-h">💸 Kisse paisa lena hai</div>
+    <div class="owe-list" id="oweList"></div>
   </div>
 
-  <div class="tabs">
-    <button class="tab active" onclick="showTab('summary', this)">📊 Summary</button>
-    <button class="tab" onclick="showTab('late', this)">⚖️ Penalties</button>
-    <button class="tab" onclick="showTab('payments', this)">💰 Payments</button>
-  </div>
+  <div id="partyStripWrap"></div>
 
-  <!-- SUMMARY -->
-  <div id="tab-summary" class="tab-content active">
-    <div class="panel">
-      <h3>📈 Per Employee Summary</h3>
+  <details class="advanced">
+    <summary>🧾 Advanced details — Type breakdown & full summary</summary>
+    <div>
+      <div class="section-h" style="margin-top:4px;">Penalty Type Breakdown</div>
+      <div class="stats-grid" id="typeBreakdown"></div>
+      <div class="section-h" style="margin-top:16px;">Per Employee Summary</div>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Employee</th><th>Late Days</th><th>Total Penalty (₹)</th><th>Paid (₹)</th><th>Pending (₹)</th><th>Advance (₹)</th></tr></thead>
@@ -132,10 +166,15 @@
       </div>
       <div class="pagination" id="summaryPg"></div>
     </div>
+  </details>
+
+  <div class="tabs" style="margin-top:14px;">
+    <button class="tab active" onclick="showTab('late', this)">⚖️ All Penalties</button>
+    <button class="tab" onclick="showTab('payments', this)">💰 All Payments</button>
   </div>
 
   <!-- LATE RECORDS -->
-  <div id="tab-late" class="tab-content">
+  <div id="tab-late" class="tab-content active">
     <div class="panel">
       <h3><span>⚖️ All Penalties (<span id="lateCount">0</span>)</span></h3>
       <div class="filters">
@@ -353,11 +392,65 @@ function renderStats(emp, lateFiltered, payFiltered) {
   const partyItemMap = {};
   pendingParties.forEach(r => { const k = r.item || 'Item'; partyItemMap[k] = (partyItemMap[k] || 0) + 1; });
   const partySummary = Object.keys(partyItemMap).sort().map(k => `${partyItemMap[k]} ${k}`).join(', ') || '—';
-  document.getElementById('overallStats').innerHTML = `
-    <div class="stat-card"><div class="label">${empCardLabel}</div><div class="value">${empLabel}</div></div>
-    <div class="stat-card orange"><div class="label">Pending</div><div class="value">₹${totalPending}</div></div>
-    <div class="stat-card green"><div class="label">Paid</div><div class="value">₹${totalPaid}</div></div>
-  `;
+  // Hero
+  const totalCollected = totalPending + totalPaid;
+  const paidPct = totalCollected > 0 ? Math.round((totalPaid / totalCollected) * 100) : 0;
+  const hero = document.getElementById('heroCard');
+  if (hero) {
+    hero.innerHTML = `
+      <div class="hero-line">
+        <div><div class="lbl">💰 Abhi lena hai</div><div class="big">₹${totalPending}</div></div>
+        <div class="sep">·</div>
+        <div><div class="lbl">✓ Mil chuka</div><div class="big green">₹${totalPaid}</div></div>
+        <div class="sep">·</div>
+        <div><div class="lbl">👥 ${empCardLabel}</div><div class="big neutral">${empLabel}</div></div>
+      </div>
+      <div class="hero-prog"><div style="width:${paidPct}%;"></div></div>
+      <div class="hero-prog-label">${paidPct}% recovered${totalPending === 0 && totalPaid > 0 ? ' — sab clear! 🎉' : ''}</div>
+    `;
+  }
+  // Owe list - build per-emp data
+  const oweList = document.getElementById('oweList');
+  if (oweList) {
+    const empRows = (emp ? [{ name: emp }] : db.employees).map(e => {
+      const recs = db.lateRecords.filter(r => r.employee === e.name);
+      const lateDays = recs.filter(r => (r.type || 'late') === 'late').length;
+      const cashPenalty = recs.filter(r => !((r.type === 'other') && r.otherMode === 'party')).reduce((s, r) => s + (r.amount || 0), 0);
+      const paid = db.payments.filter(p => p.employee === e.name).reduce((s, p) => s + (p.amount || 0), 0);
+      return { name: e.name, lateDays, pending: Math.max(0, cashPenalty - paid), advance: Math.max(0, paid - cashPenalty) };
+    });
+    const withPending = empRows.filter(r => r.pending > 0).sort((a, b) => b.pending - a.pending);
+    const withAdvance = empRows.filter(r => r.pending === 0 && r.advance > 0);
+    const allClear = empRows.filter(r => r.pending === 0 && r.advance === 0);
+    let html = '';
+    if (!empRows.length) {
+      html = '<div style="padding:16px;color:#888;text-align:center;">Koi employee nahi hai.</div>';
+    } else if (!withPending.length) {
+      html = '<div class="owe-row clear"><span class="owe-dot green"></span><span class="owe-name">Sab clear 🎉</span><span class="owe-amt green">Koi pending nahi</span></div>';
+    } else {
+      html = withPending.map(r => `
+        <div class="owe-row" onclick="showEmpPendingModal('${escapeHtml(r.name).replace(/'/g,"\\'")}')">
+          <span class="owe-dot red"></span>
+          <span class="owe-name">${escapeHtml(r.name)}<span class="owe-sub">${r.lateDays ? r.lateDays + ' late' : ''}</span></span>
+          <span class="owe-amt">₹${r.pending}</span>
+          <span class="owe-arrow">›</span>
+        </div>
+      `).join('');
+      if (withAdvance.length) {
+        html += withAdvance.map(r => `
+          <div class="owe-row clear">
+            <span class="owe-dot green"></span>
+            <span class="owe-name">${escapeHtml(r.name)}</span>
+            <span class="owe-amt green">Settled · advance ₹${r.advance}</span>
+          </div>
+        `).join('');
+      }
+      if (allClear.length) {
+        html += `<div class="owe-row clear"><span class="owe-dot green"></span><span class="owe-name">${allClear.length} aur employee</span><span class="owe-amt green">All clear</span></div>`;
+      }
+    }
+    oweList.innerHTML = html;
+  }
   const typeBreakdown = document.getElementById('typeBreakdown');
   if (typeBreakdown) {
     typeBreakdown.innerHTML = `
@@ -367,6 +460,45 @@ function renderStats(emp, lateFiltered, payFiltered) {
       <div class="stat-card" style="border-left:4px solid #ec4899;cursor:pointer;" onclick="showPendingModal('party')"><div class="label">🎉 Party Pending <span style="font-size:10px;color:#999;">(click)</span></div><div class="value">${partyPendingCount}</div><div style="font-size:11px;color:#666;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(partySummary)}</div></div>
     `;
   }
+  // Party strip
+  const partyWrap = document.getElementById('partyStripWrap');
+  if (partyWrap) {
+    if (partyPendingCount === 0) {
+      partyWrap.innerHTML = `<div class="party-strip empty">🎉 Koi party pending nahi hai!</div>`;
+    } else {
+      partyWrap.innerHTML = `<div class="party-strip" onclick="showPendingModal('party')"><span>🎉</span><span class="items">Parties pending: <strong>${escapeHtml(partySummary)}</strong></span></div>`;
+    }
+  }
+}
+
+function showEmpPendingModal(name) {
+  const all = [
+    ...(window._pendingLate || []).map(r => ({ ...r, _k:'late' })),
+    ...(window._pendingAppraisal || []).map(r => ({ ...r, _k:'appraisal' })),
+    ...(window._pendingOtherCash || []).map(r => ({ ...r, _k:'otherCash' })),
+  ].filter(r => r.employee === name).sort((a, b) => a.date.localeCompare(b.date));
+  const parties = (window._pendingParties || []).filter(r => r.employee === name);
+  const titleEl = document.getElementById('pm_title');
+  const bodyEl = document.getElementById('pm_body');
+  titleEl.textContent = `${name} — Pending`;
+  if (!all.length && !parties.length) {
+    bodyEl.innerHTML = '<p style="color:#555;">Koi pending nahi 🎉</p>';
+    document.getElementById('pendingModal').classList.add('show');
+    return;
+  }
+  const total = all.reduce((s, r) => s + (r.amount || 0), 0);
+  const kindLabel = { late:'⏰ Late', appraisal:'📊 Appraisal', otherCash:'💵 Other Cash' };
+  const cashList = all.map(r => {
+    const extra = r.arriveTime ? ` · ${r.arriveTime}` : (r.description ? ` · ${escapeHtml(r.description)}` : '');
+    return `<li>${kindLabel[r._k]} — ₹${r.amount || 0} <span style="color:#888;font-size:11px;">(${r.date}${extra})</span></li>`;
+  }).join('');
+  const partyList = parties.map(r => `<li>🎉 ${escapeHtml(r.item || 'Item')} <span style="color:#888;font-size:11px;">(${r.date})</span></li>`).join('');
+  bodyEl.innerHTML = `
+    ${total ? `<div style="margin-bottom:10px;"><span style="display:inline-block;background:#fef2f2;color:#991b1b;padding:6px 12px;border-radius:12px;font-weight:600;">Cash pending: ₹${total}</span></div>` : ''}
+    ${cashList ? `<ul style="margin:4px 0 12px 20px;padding:0;font-size:13px;color:#555;">${cashList}</ul>` : ''}
+    ${partyList ? `<div style="font-size:12px;color:#666;margin-bottom:4px;">Pending parties:</div><ul style="margin:4px 0 0 20px;padding:0;font-size:13px;color:#555;">${partyList}</ul>` : ''}
+  `;
+  document.getElementById('pendingModal').classList.add('show');
 }
 
 function renderSummary(emp) {
