@@ -324,7 +324,7 @@ function renderStats(emp, lateFiltered, payFiltered) {
   const rowsAll = empScope.map(e => {
     const empRecs = db.lateRecords.filter(r => r.employee === e.name && !((r.type === 'other') && r.otherMode === 'party'));
     const penalty = empRecs.reduce((s, r) => s + (r.amount || 0), 0);
-    const paid = db.payments.filter(p => p.employee === e.name && p.mode !== 'party').reduce((s, p) => s + (p.amount || 0), 0);
+    const paid = db.payments.filter(p => p.employee === e.name).reduce((s, p) => s + (p.amount || 0), 0);
     return { pending: Math.max(0, penalty - paid) };
   });
   const totalPending = rowsAll.reduce((s, r) => s + r.pending, 0);
@@ -542,7 +542,7 @@ function computePaidMap() {
   });
   Object.keys(byEmp).forEach(emp => {
     const recs = [...byEmp[emp]].sort((a, b) => a.date.localeCompare(b.date));
-    let pool = db.payments.filter(p => p.employee === emp && p.mode !== 'party').reduce((s, p) => s + (p.amount || 0), 0);
+    let pool = db.payments.filter(p => p.employee === emp).reduce((s, p) => s + (p.amount || 0), 0);
     recs.forEach(r => {
       const need = r.amount || 0;
       if (pool >= need) { paidMap[r.id] = 'paid'; pool -= need; }

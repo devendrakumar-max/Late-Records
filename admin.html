@@ -754,7 +754,7 @@ function computePaidMap() {
   });
   Object.keys(byEmp).forEach(emp => {
     const recs = [...byEmp[emp]].sort((a, b) => a.date.localeCompare(b.date));
-    let pool = db.payments.filter(p => p.employee === emp && p.mode !== 'party').reduce((s, p) => s + (p.amount || 0), 0);
+    let pool = db.payments.filter(p => p.employee === emp).reduce((s, p) => s + (p.amount || 0), 0);
     recs.forEach(r => {
       const need = r.amount || 0;
       if (pool >= need) { paidMap[r.id] = 'paid'; pool -= need; }
@@ -1034,12 +1034,11 @@ function renderDashboard() {
   const rowsAll = db.employees.map(emp => {
     const empRecs = db.lateRecords.filter(r => r.employee === emp.name);
     const lateDays = empRecs.filter(r => (r.type || 'late') === 'late').length;
-    // Cash penalty = everything except party records; cash paid = everything except party-mode payments
+    // Cash-owed penalty excludes party records (party is tracked via done/pending flag)
     const cashPenalty = empRecs.filter(r => !((r.type === 'other') && r.otherMode === 'party')).reduce((s, r) => s + (r.amount || 0), 0);
-    const cashPaid = db.payments.filter(p => p.employee === emp.name && p.mode !== 'party').reduce((s, p) => s + (p.amount || 0), 0);
     const penalty = empRecs.reduce((s, r) => s + (r.amount || 0), 0);
     const paid = db.payments.filter(p => p.employee === emp.name).reduce((s, p) => s + (p.amount || 0), 0);
-    return { name: emp.name, lateDays, penalty, paid, pending: Math.max(0, cashPenalty - cashPaid), advance: Math.max(0, cashPaid - cashPenalty) };
+    return { name: emp.name, lateDays, penalty, paid, pending: Math.max(0, cashPenalty - paid), advance: Math.max(0, paid - cashPenalty) };
   });
   const totalPending = rowsAll.reduce((s, r) => s + r.pending, 0);
   const totalAdvance = rowsAll.reduce((s, r) => s + r.advance, 0);
