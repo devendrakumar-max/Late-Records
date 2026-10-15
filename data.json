@@ -43,6 +43,12 @@
   ],
   "lateRecords": [
     {
+      "id": "1792042493277",
+      "employee": "Simran Saini",
+      "date": "2026-10-14",
+      "arriveTime": "09:02"
+    },
+    {
       "id": "1792041505235",
       "employee": "Simran Saini",
       "date": "2026-10-15",
@@ -60,5 +66,5 @@
     }
   ],
   "penaltyPerDay": 120,
-  "lastUpdated": "2026-10-15T05:21:14.410Z"
+  "lastUpdated": "2026-10-15T05:34:54.079Z"
 }
