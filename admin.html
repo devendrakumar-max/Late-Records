@@ -266,8 +266,20 @@ function showTab(name, btn) {
 
 async function loadData() {
   try {
-    const res = await fetch(DATA_URL + '?t=' + Date.now());
-    const data = await res.json();
+    const token = localStorage.getItem('gh_token');
+    let data;
+    if (token) {
+      const apiUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${GITHUB_FILE}?ref=${GITHUB_BRANCH}&t=${Date.now()}`;
+      const res = await fetch(apiUrl, {
+        headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json', 'Cache-Control': 'no-cache' },
+        cache: 'no-store'
+      });
+      const info = await res.json();
+      data = JSON.parse(decodeURIComponent(escape(atob(info.content.replace(/\n/g, '')))));
+    } else {
+      const res = await fetch(DATA_URL + '?t=' + Date.now(), { cache: 'no-store' });
+      data = await res.json();
+    }
     db.employees = data.employees || [];
     db.lateRecords = data.lateRecords || [];
     db.payments = data.payments || [];
