@@ -1,6 +1,17 @@
 {
   "records": [
     {
+      "id": "1792039599600",
+      "date": "2026-10-15",
+      "employee": "Baini saini",
+      "arriveTime": "09:01",
+      "reason": "",
+      "penaltyPaid": "no",
+      "penaltyMode": "",
+      "penaltyDate": "",
+      "partyDetails": ""
+    },
+    {
       "id": "1792039423529",
       "date": "2026-10-15",
       "employee": "Simran Saini",
@@ -12,5 +23,5 @@
       "partyDetails": ""
     }
   ],
-  "lastUpdated": "2026-10-15T04:44:25.259Z"
+  "lastUpdated": "2026-10-15T04:46:42.488Z"
 }
