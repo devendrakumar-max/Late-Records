@@ -57,6 +57,14 @@
   ],
   "payments": [
     {
+      "id": "1792042623298",
+      "employee": "Simran Saini",
+      "date": "2026-10-15",
+      "mode": "cash",
+      "amount": 120,
+      "partyItems": ""
+    },
+    {
       "id": "1792041555019",
       "employee": "Simran Saini",
       "date": "2026-10-15",
@@ -66,5 +74,5 @@
     }
   ],
   "penaltyPerDay": 120,
-  "lastUpdated": "2026-10-15T05:34:54.079Z"
+  "lastUpdated": "2026-10-15T05:37:04.227Z"
 }
