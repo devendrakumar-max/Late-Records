@@ -416,7 +416,7 @@ function renderPayments(records, emp) {
       <td>${p.date}</td>
       <td><strong>${escapeHtml(p.employee)}</strong></td>
       <td><span class="badge badge-${p.mode}">${p.mode}</span></td>
-      <td class="pill-green">₹${p.amount}</td>
+      <td class="pill-green">${p.amount > 0 ? '₹' + p.amount : '—'}</td>
       <td>${p.partyItems ? escapeHtml(p.partyItems) : '-'}</td>
     </tr>`).join('');
   const totalPaid = r.reduce((s, p) => s + (p.amount || 0), 0);

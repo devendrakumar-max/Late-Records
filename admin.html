@@ -231,7 +231,7 @@
             <option value="party">Party</option>
           </select>
         </label>
-        <label>Amount (₹) * <input type="number" id="p_amount" min="0" step="1" placeholder="500"></label>
+        <label><span id="p_amountLabel">Amount (₹) *</span> <input type="number" id="p_amount" min="0" step="1" placeholder="500"></label>
         <label class="conditional" id="c_party" style="grid-column: span 2;">Party Items (optional)
           <textarea id="p_partyItems" placeholder="Pizza, biryani, cold drinks..."></textarea>
         </label>
@@ -653,19 +653,25 @@ function renderLate() {
 function togglePartyField() {
   const mode = document.getElementById('p_mode').value;
   document.getElementById('c_party').classList.toggle('show', mode === 'party');
+  const lbl = document.getElementById('p_amountLabel');
+  if (lbl) lbl.textContent = mode === 'party' ? 'Amount (₹) (optional)' : 'Amount (₹) *';
 }
 
 async function savePayment() {
   const employee = document.getElementById('p_employee').value;
   const date = document.getElementById('p_date').value;
   const mode = document.getElementById('p_mode').value;
-  const amount = parseInt(document.getElementById('p_amount').value, 10);
-  if (!employee || !date || !mode || !amount || amount <= 0) { showMsg('Fill required fields with valid amount.', 'error'); return; }
+  const amtRaw = document.getElementById('p_amount').value;
+  const amount = amtRaw ? parseInt(amtRaw, 10) : 0;
+  if (!employee || !date || !mode) { showMsg('Employee, Date and Mode required.', 'error'); return; }
+  if (mode === 'cash' && (!amount || amount <= 0)) { showMsg('Valid amount required for Cash.', 'error'); return; }
+  const partyItems = mode === 'party' ? document.getElementById('p_partyItems').value.trim() : '';
+  if (mode === 'party' && !partyItems && !amount) { showMsg('Party Items or amount required for Party.', 'error'); return; }
   const editId = document.getElementById('p_editId').value;
   const rec = {
     id: editId || Date.now().toString(),
-    employee, date, mode, amount,
-    partyItems: mode === 'party' ? document.getElementById('p_partyItems').value.trim() : ''
+    employee, date, mode, amount: amount || 0,
+    partyItems
   };
   if (editId) {
     const idx = db.payments.findIndex(p => p.id === editId);
@@ -727,7 +733,7 @@ function renderPayments() {
       <td>${p.date}</td>
       <td><strong>${escapeHtml(p.employee)}</strong></td>
       <td><span class="badge badge-${p.mode}">${p.mode}</span></td>
-      <td class="pill-green">₹${p.amount}</td>
+      <td class="pill-green">${p.amount > 0 ? '₹' + p.amount : '—'}</td>
       <td>${p.partyItems ? escapeHtml(p.partyItems) : '-'}</td>
       <td>
         <button class="btn btn-small btn-edit" onclick="editPayment('${p.id}')">Edit</button>
