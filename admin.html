@@ -271,10 +271,25 @@
     </div>
     <div class="panel">
       <h3>💰 All Payments (<span id="payCount">0</span>)</h3>
+      <div class="filters" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">
+        <label style="display:flex;flex-direction:column;font-size:11px;color:#555;gap:4px;">Employee
+          <select id="ap_emp" onchange="renderPayments()" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;min-width:160px;">
+            <option value="">All</option>
+          </select>
+        </label>
+        <label style="display:flex;flex-direction:column;font-size:11px;color:#555;gap:4px;">Mode
+          <select id="ap_mode" onchange="renderPayments()" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;min-width:120px;">
+            <option value="">All</option>
+            <option value="cash">Cash</option>
+            <option value="party">Party</option>
+          </select>
+        </label>
+      </div>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Date</th><th>Employee</th><th>Mode</th><th>Amount</th><th>Party Items</th><th>Action</th></tr></thead>
           <tbody id="payBody"></tbody>
+          <tfoot id="payFoot"></tfoot>
         </table>
       </div>
       <div class="pagination" id="payPg"></div>
@@ -441,6 +456,12 @@ function renderEmployeeDropdowns() {
     const prev = alEmp.value;
     alEmp.innerHTML = filterOpts;
     alEmp.value = prev;
+  }
+  const apEmp = document.getElementById('ap_emp');
+  if (apEmp) {
+    const prev = apEmp.value;
+    apEmp.innerHTML = filterOpts;
+    apEmp.value = prev;
   }
 }
 
@@ -843,13 +864,20 @@ function resetPayForm() {
 
 function renderPayments() {
   const tbody = document.getElementById('payBody');
-  document.getElementById('payCount').textContent = db.payments.length;
-  if (!db.payments.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;padding:20px;">No payments yet.</td></tr>';
+  const tfoot = document.getElementById('payFoot');
+  const filterEmp = (document.getElementById('ap_emp') || {}).value || '';
+  const filterMode = (document.getElementById('ap_mode') || {}).value || '';
+  let filtered = db.payments;
+  if (filterEmp) filtered = filtered.filter(p => p.employee === filterEmp);
+  if (filterMode) filtered = filtered.filter(p => p.mode === filterMode);
+  document.getElementById('payCount').textContent = filtered.length;
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;padding:20px;">No payments.</td></tr>';
+    if (tfoot) tfoot.innerHTML = '';
     renderPagination('payPg', 0, 1, 'goPayPage');
     return;
   }
-  const sorted = [...db.payments].sort((a, b) => b.date.localeCompare(a.date));
+  const sorted = [...filtered].sort((a, b) => b.date.localeCompare(a.date));
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   if (pageState.pay > totalPages) pageState.pay = totalPages;
   const pageItems = paginate(sorted, pageState.pay);
@@ -865,7 +893,18 @@ function renderPayments() {
         <button class="btn btn-small btn-delete" onclick="deletePayment('${p.id}')">Del</button>
       </td>
     </tr>`).join('');
-  renderPagination('payPg', db.payments.length, pageState.pay, 'goPayPage');
+  const totalAmt = filtered.reduce((s, p) => s + (p.amount || 0), 0);
+  const labelParts = [];
+  if (filterEmp) labelParts.push(escapeHtml(filterEmp));
+  if (filterMode) labelParts.push(filterMode);
+  const label = labelParts.length ? `Total for ${labelParts.join(' / ')}` : 'Overall Total';
+  if (tfoot) tfoot.innerHTML = `
+    <tr style="background:#f9fafb;font-weight:700;">
+      <td colspan="3">${label}</td>
+      <td class="pill-green">₹${totalAmt}</td>
+      <td colspan="2">${filtered.length} payment${filtered.length !== 1 ? 's' : ''}</td>
+    </tr>`;
+  renderPagination('payPg', filtered.length, pageState.pay, 'goPayPage');
 }
 
 // ---------- DASHBOARD ----------
