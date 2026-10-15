@@ -62,6 +62,7 @@
   .badge { padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
   .badge-cash { background: #dbeafe; color: #1e40af; }
   .badge-party { background: #fef3c7; color: #92400e; }
+  .badge-done { background: #d1fae5; color: #065f46; }
   .pill-red { color: #dc2626; font-weight: 600; }
   .pill-green { color: #059669; font-weight: 600; }
   .party-note { font-size: 11px; color: #666; font-style: italic; margin-top: 2px; }
@@ -776,22 +777,25 @@ function renderLate() {
       : '';
     const isCashPayable = type === 'late' || (type === 'other' && r.otherMode === 'cash');
     const paidStatus = isCashPayable ? paidMap[r.id] : null;
-    const rowStyle = ((isParty && r.completed) || paidStatus === 'paid') ? 'opacity:0.55;text-decoration:line-through;' : '';
+    const isSettled = (isParty && r.completed) || paidStatus === 'paid';
+    const rowStyle = isSettled ? 'background:#f0fdf4;border-left:3px solid #16a34a;' : '';
+    const check = isSettled ? '<span style="color:#16a34a;font-weight:700;margin-right:6px;" title="Settled">✓</span>' : '';
     let statusBadge = '';
     if (isParty) {
-      statusBadge = r.completed ? ' <span class="badge badge-cash">✓ done</span>' : ' <span class="badge badge-party">pending</span>';
+      statusBadge = r.completed ? ' <span class="badge badge-done">✓ done</span>' : ' <span class="badge badge-party">pending</span>';
     } else if (isCashPayable) {
-      if (paidStatus === 'paid') statusBadge = ' <span class="badge badge-cash">✓ paid</span>';
+      if (paidStatus === 'paid') statusBadge = ' <span class="badge badge-done">✓ paid</span>';
       else if (paidStatus === 'partial') statusBadge = ' <span class="badge badge-party">partial</span>';
       else statusBadge = ' <span class="badge badge-party">unpaid</span>';
     }
+    const amtClass = isSettled ? 'pill-green' : 'pill-red';
     return `
     <tr style="${rowStyle}">
-      <td>${r.date}</td>
+      <td>${check}${r.date}</td>
       <td><strong>${escapeHtml(r.employee)}</strong></td>
       <td><span class="badge ${badgeClass}">${typeLabel}</span>${statusBadge}</td>
       <td>${details}</td>
-      <td class="pill-red">${amtDisplay}</td>
+      <td class="${amtClass}">${amtDisplay}</td>
       <td>
         ${doneBtn}
         <button class="btn btn-small btn-edit" onclick="editLate('${r.id}')">Edit</button>
