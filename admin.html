@@ -271,9 +271,10 @@ async function loadData() {
     if (token) {
       const apiUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${GITHUB_FILE}?ref=${GITHUB_BRANCH}&t=${Date.now()}`;
       const res = await fetch(apiUrl, {
-        headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json', 'Cache-Control': 'no-cache' },
+        headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json' },
         cache: 'no-store'
       });
+      if (!res.ok) throw new Error('API ' + res.status);
       const info = await res.json();
       data = JSON.parse(decodeURIComponent(escape(atob(info.content.replace(/\n/g, '')))));
     } else {
@@ -598,7 +599,8 @@ async function autoCommit(actionLabel, attempt = 0) {
   const apiBase = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${GITHUB_FILE}`;
   try {
     const getRes = await fetch(apiBase + '?ref=' + GITHUB_BRANCH + '&t=' + Date.now(), {
-      headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json', 'Cache-Control': 'no-cache' }
+      headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json' },
+      cache: 'no-store'
     });
     let sha = null;
     let remoteData = null;
